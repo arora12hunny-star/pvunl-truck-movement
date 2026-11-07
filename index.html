@@ -50,14 +50,17 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}h3{color:var(--navy)}.pill{p
 </div>
 <div class="panel" style="margin-top:14px"><h2>Trucks Currently Inside Plant</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry Time</th><th>Gate</th><th>Status</th></tr></thead><tbody id="insideRows"></tbody></table></div></div>
 <div class="panel"><h2>Recent Movement</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry</th><th>Exit</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
-<button onclick="refreshAll()">Refresh dashboard</button> <button class="secondary" onclick="downloadExcel()">Download Excel database</button>
+<button onclick="refreshAll()">Refresh dashboard</button> <button class="secondary" onclick="downloadExcel()">Download Excel database</button><div class="panel" style="margin-top:14px"><h2>Gate Operator Password</h2>
+<p class="muted">Default operator password: PVUNL2028. Administrator can change it here. The new password applies to all Gate Operator logins.</p>
+<label>New operator password (minimum 8 characters)</label><input id="newOperatorPassword" type="password" placeholder="Enter new operator password">
+<button class="primary" onclick="changeOperatorPassword()">Change operator password</button><div id="operatorPasswordMsg"></div></div>
 </section>
 <section id="scan" class="tabbody hidden">
 <div class="panel"><h2>Gate QR Scanning</h2><div class="row">
-<div><label>Gate</label><select id="gate"><option>Main Gate</option><option>Gate 1</option><option>Gate 2</option><option>Other</option></select></div>
-<div><label>Movement action</label><select id="action"><option value="entry">IN – Truck Entry</option><option value="exit">OUT – Truck Exit</option></select></div>
+<div><label>Gate</label><select id="gate"><option value="Gate 3">Gate No. 3</option><option value="Gate 4">Gate No. 4</option></select></div>
+<div><label>Movement action</label><select id="action"><option value="exit">OUT – Truck Exit (first)</option><option value="entry">IN – Truck Return</option></select></div>
 </div>
-<p class="muted">Works in Android Chrome and iPhone Safari. Select IN/OUT, allow camera access, and scan the truck QR. For iPhone and remote access, open this application using its HTTPS address.</p>
+<p class="muted">Works in Android Chrome and iPhone Safari. Record OUT first when the truck leaves, then record IN when it returns. Select the action, allow camera access, and scan the truck QR. For iPhone and remote access, open this application using its HTTPS address.</p>
 <button class="success" onclick="startScanner()">Start camera scanner</button> <button class="secondary" onclick="stopScanner()">Stop camera</button><p class="muted">Use the rear camera. If camera permission is denied or unavailable, use Manual QR ID entry below.</p>
 <div id="reader"></div><div id="scanMsg"></div>
 <hr><h3>Manual QR ID entry (backup)</h3><div class="row"><input id="manualTruckId" placeholder="Enter / paste Truck ID"><button onclick="manualScan()">Record movement</button></div>
@@ -67,13 +70,13 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}h3{color:var(--navy)}.pill{p
 <div><label>Truck registration number *</label><input id="truckNumber" placeholder="e.g. JH01AB1234"></div>
 <div><label>Agency name</label><input id="agency" placeholder="Transport agency"></div>
 <div><label>Truck type</label><input id="truckType" placeholder="Tipper / Trailer / Other"></div>
-<div><label>Driver name</label><input id="driverName"></div>
-<div><label>Driver mobile</label><input id="driverMobile" inputmode="numeric"></div>
+<div><label>Driver name (optional)</label><input id="driverName" placeholder="Optional — not required for QR generation"></div>
+<div><label>Driver mobile (optional)</label><input id="driverMobile" inputmode="numeric" placeholder="Optional — not required for QR generation"></div>
 </div><button class="primary" onclick="registerTruck()">Register truck & generate QR</button><div id="registerMsg"></div></div>
 <div class="panel"><h2>Truck Master & QR Codes</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Truck ID</th><th>QR Code</th></tr></thead><tbody id="truckRows"></tbody></table></div></div>
 </section>
 <section id="records" class="tabbody hidden">
-<div class="panel"><h2>Movement Register</h2><p class="muted">Latest 30 records are shown here. Download the complete Excel workbook for historical records. Administrator can delete an individual record below.</p><button class="secondary" onclick="downloadExcel()">Download Excel database</button><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry Date/Time</th><th>Entry Gate</th><th>Exit Date/Time</th><th>Exit Gate</th><th>TAT (min)</th><th>Status</th><th>Action</th></tr></thead><tbody id="recordRows"></tbody></table></div></div>
+<div class="panel"><h2>Movement Register</h2><p class="muted">Latest 30 records are shown here. Download the complete Excel workbook for historical records. Administrator can delete an individual record below.</p><button class="secondary" onclick="downloadExcel()">Download Excel database</button><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>OUT Date/Time</th><th>OUT Gate</th><th>IN Date/Time</th><th>IN Gate</th><th>TAT (min)</th><th>Status</th><th>Action</th></tr></thead><tbody id="recordRows"></tbody></table></div></div>
 <div class="panel"><h2>Data Management</h2><p class="muted">These actions permanently delete records. Download a backup Excel file before proceeding.</p><button class="danger" onclick="resetMovements()">Delete all movement records</button> <button class="danger" onclick="resetAllData()">Reset all data (trucks + movements)</button><div id="dataAdminMsg"></div><p class="muted"><b>Delete all movement records:</b> retains registered trucks and QR codes. <b>Reset all data:</b> deletes both truck registrations and all movement history.</p></div>
 </section>
 </div></div>
@@ -166,6 +169,18 @@ async function submitScan(raw){
   }catch(e){msg('scanMsg',e.message,true)}
 }
 function manualScan(){submitScan(byId('manualTruckId').value)}
+
+async function changeOperatorPassword(){
+  if(userRole!=='admin')return;
+  const newPassword=byId('newOperatorPassword').value;
+  if(newPassword.length<8){msg('operatorPasswordMsg','Password must contain at least 8 characters.',true);return;}
+  if(!confirm('Change the Gate Operator password? All operators will need to use the new password for their next login.'))return;
+  try{
+    const d=await api('/api/operator-password',{method:'POST',body:JSON.stringify({new_password:newPassword})});
+    msg('operatorPasswordMsg',d.message);
+    byId('newOperatorPassword').value='';
+  }catch(e){msg('operatorPasswordMsg',e.message,true)}
+}
 
 async function deleteMovement(encodedId){
   if(userRole!=='admin')return;
