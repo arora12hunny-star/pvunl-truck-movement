@@ -232,6 +232,44 @@ def dashboard():
             "outside_count": outside_count
         })
 
+    # Truck-wise lifetime performance, calculated from the complete movement history.
+    truck_perf = {}
+    for truck in trucks:
+        key = str(truck.get("Truck_ID") or "")
+        if key:
+            truck_perf[key] = {"truck_number": truck.get("Truck_Number") or "", "agency": truck.get("Agency") or "", "completed_trips": 0, "inside_sum": 0.0, "inside_count": 0, "outside_sum": 0.0, "outside_count": 0, "longest_outside": 0.0, "last_movement": None, "current_status": "INSIDE PLANT", "open_since": None}
+    for movement in movements:
+        key = str(movement.get("Truck_ID") or "")
+        if key not in truck_perf: continue
+        item = truck_perf[key]
+        out_dt = parse_movement_datetime(movement.get("Exit_Date"), movement.get("Exit_Time"))
+        in_dt = parse_movement_datetime(movement.get("Entry_Date"), movement.get("Entry_Time"))
+        if out_dt and in_dt and in_dt >= out_dt:
+            outside_minutes = (in_dt - out_dt).total_seconds() / 60
+            item["outside_sum"] += outside_minutes; item["outside_count"] += 1; item["completed_trips"] += 1
+            item["longest_outside"] = max(item["longest_outside"], outside_minutes)
+        for stamp in (out_dt, in_dt):
+            if stamp and (item["last_movement"] is None or stamp > item["last_movement"]): item["last_movement"] = stamp
+    for key, item in truck_perf.items():
+        truck_movements = [m for m in movements if str(m.get("Truck_ID") or "") == key]
+        truck_movements.sort(key=lambda m: parse_movement_datetime(m.get("Exit_Date"), m.get("Exit_Time")) or parse_movement_datetime(m.get("Entry_Date"), m.get("Entry_Time")) or datetime.min)
+        previous_return = None; latest_open = None
+        for movement in truck_movements:
+            out_dt = parse_movement_datetime(movement.get("Exit_Date"), movement.get("Exit_Time"))
+            in_dt = parse_movement_datetime(movement.get("Entry_Date"), movement.get("Entry_Time"))
+            if previous_return and out_dt and out_dt >= previous_return:
+                item["inside_sum"] += (out_dt - previous_return).total_seconds() / 60; item["inside_count"] += 1
+            if in_dt: previous_return = in_dt
+            if str(movement.get("Status") or "").upper() == "OUTSIDE" and out_dt: latest_open = out_dt
+        if latest_open:
+            item["current_status"] = "OUTSIDE PLANT"; item["open_since"] = latest_open.strftime("%Y-%m-%d %H:%M:%S")
+        item["avg_inside_minutes"] = round(item["inside_sum"] / item["inside_count"], 1) if item["inside_count"] else None
+        item["avg_outside_minutes"] = round(item["outside_sum"] / item["outside_count"], 1) if item["outside_count"] else None
+        item["longest_outside_minutes"] = round(item["longest_outside"], 1) if item["outside_count"] else None
+        item["last_movement"] = item["last_movement"].strftime("%Y-%m-%d %H:%M:%S") if item["last_movement"] else ""
+        for field in ("inside_sum", "outside_sum", "longest_outside"): item.pop(field, None)
+    truck_performance = sorted(truck_perf.values(), key=lambda x: x["truck_number"])
+
     gate_summary = []
     for gate in ("Gate 3", "Gate 4"):
         gate_summary.append({"gate": gate,
@@ -246,7 +284,7 @@ def dashboard():
         "out_today": len(out_today), "returned_today": len(returned_today), "avg_tat_today": avg_tat_today,
         "completed_today": len(completed_today), "open_truck_rows": open_rows, "daily_trend": daily,
         "gate_summary": gate_summary, "agency_summary": agency_summary, "tat_trend": tat_trend,
-        "recent_movements": recent_movements})
+        "recent_movements": recent_movements, "truck_performance": truck_performance})
 
 
 @app.route("/api/trucks", methods=["GET", "POST"])
