@@ -128,35 +128,52 @@ def dashboard():
         wb = load_db()
         trucks = rows_as_dict(wb["Trucks"])
         movements = rows_as_dict(wb["Movements"])
-    today = now_local().strftime("%Y-%m-%d")
-    active = [m for m in movements if str(m.get("Status", "")).upper() == "INSIDE"]
-    exited_today = [m for m in movements if m.get("Exit_Date") == today]
-    completed = [m for m in movements if m.get("TAT_Minutes") is not None]
-    avg_tat = round(sum(float(m["TAT_Minutes"]) for m in completed) / len(completed), 1) if completed else 0
-    inside_trucks = [{
-        "Truck_Number": m.get("Truck_Number") or "",
-        "Agency": m.get("Agency") or "",
-        "Entry_Time": m.get("Entry_Time") or "",
-        "Entry_Gate": m.get("Entry_Gate") or "",
-        "Status": m.get("Status") or ""
-    } for m in active]
-    recent = sorted(movements, key=lambda x: str(x.get("Movement_ID", "")), reverse=True)[:30]
-    recent_movements = [{
-        "Movement_ID": m.get("Movement_ID") or "",
-        "Truck_Number": m.get("Truck_Number") or "",
-        "Agency": m.get("Agency") or "",
-        "Entry_Date": m.get("Entry_Date") or "",
-        "Entry_Time": m.get("Entry_Time") or "",
-        "Entry_Gate": m.get("Entry_Gate") or "",
-        "Exit_Date": m.get("Exit_Date") or "",
-        "Exit_Time": m.get("Exit_Time") or "",
-        "Exit_Gate": m.get("Exit_Gate") or "",
-        "TAT_Minutes": m.get("TAT_Minutes"),
-        "Status": m.get("Status") or ""
-    } for m in recent]
-    return jsonify({"registered_trucks": len(trucks), "inside": len(active),
-                    "exited_today": len(exited_today), "avg_tat_minutes": avg_tat,
-                    "inside_trucks": inside_trucks, "recent_movements": recent_movements})
+    current = now_local()
+    today = current.strftime("%Y-%m-%d")
+    open_trips = [m for m in movements if str(m.get("Status", "")).upper() == "OUTSIDE"]
+    out_today = [m for m in movements if str(m.get("Exit_Date") or "") == today]
+    returned_today = [m for m in movements if str(m.get("Entry_Date") or "") == today and m.get("Entry_Time")]
+    completed_today = [m for m in returned_today if m.get("TAT_Minutes") is not None]
+    tat_values = [float(m["TAT_Minutes"]) for m in completed_today]
+    avg_tat_today = round(sum(tat_values) / len(tat_values), 1) if tat_values else 0
+    open_rows = []
+    for m in open_trips:
+        age = None
+        try:
+            started = datetime.strptime(f"{m.get('Exit_Date')} {m.get('Exit_Time')}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+            age = max(0, round((current - started).total_seconds() / 60, 1))
+        except Exception:
+            pass
+        open_rows.append({"Truck_Number": m.get("Truck_Number") or "", "Agency": m.get("Agency") or "",
+                          "OUT_Date": m.get("Exit_Date") or "", "OUT_Time": m.get("Exit_Time") or "",
+                          "OUT_Gate": m.get("Exit_Gate") or "", "Age_Minutes": age})
+    open_rows.sort(key=lambda x: x.get("Age_Minutes") if x.get("Age_Minutes") is not None else -1, reverse=True)
+    recent = sorted(movements, key=lambda x: f"{x.get('Exit_Date') or x.get('Entry_Date') or ''} {x.get('Exit_Time') or x.get('Entry_Time') or ''}", reverse=True)[:30]
+    recent_movements = [{"Movement_ID": m.get("Movement_ID") or "", "Truck_Number": m.get("Truck_Number") or "",
+        "Agency": m.get("Agency") or "", "Entry_Date": m.get("Entry_Date") or "", "Entry_Time": m.get("Entry_Time") or "",
+        "Entry_Gate": m.get("Entry_Gate") or "", "Exit_Date": m.get("Exit_Date") or "", "Exit_Time": m.get("Exit_Time") or "",
+        "Exit_Gate": m.get("Exit_Gate") or "", "TAT_Minutes": m.get("TAT_Minutes"), "Status": m.get("Status") or ""} for m in recent]
+    daily = []
+    for offset in range(6, -1, -1):
+        day = (current - timedelta(days=offset)).strftime("%Y-%m-%d")
+        daily.append({"date": day, "out": sum(1 for m in movements if str(m.get("Exit_Date") or "") == day),
+                      "in": sum(1 for m in movements if str(m.get("Entry_Date") or "") == day and m.get("Entry_Time"))})
+    gate_summary = []
+    for gate in ("Gate 3", "Gate 4"):
+        gate_summary.append({"gate": gate,
+            "out": sum(1 for m in out_today if str(m.get("Exit_Gate") or "") == gate),
+            "in": sum(1 for m in returned_today if str(m.get("Entry_Gate") or "") == gate)})
+    agency_map = {}
+    for m in movements:
+        agency = str(m.get("Agency") or "Not specified")
+        agency_map[agency] = agency_map.get(agency, 0) + 1
+    agency_summary = [{"agency": k, "trips": v} for k, v in sorted(agency_map.items(), key=lambda x: x[1], reverse=True)[:8]]
+    return jsonify({"registered_trucks": len(trucks), "open_trips": len(open_trips),
+        "out_today": len(out_today), "returned_today": len(returned_today), "avg_tat_today": avg_tat_today,
+        "completed_today": len(completed_today), "open_truck_rows": open_rows, "daily_trend": daily,
+        "gate_summary": gate_summary, "agency_summary": agency_summary,
+        "recent_movements": recent_movements})
+
 
 @app.route("/api/trucks", methods=["GET", "POST"])
 def trucks_api():
