@@ -120,6 +120,26 @@ def health():
         app.logger.exception("Health check failed")
         return jsonify({"ok": False, "error": str(exc)}), 500
 
+
+def parse_movement_datetime(date_value, time_value):
+    """Parse a stored local scan date/time into a naive datetime."""
+    if not date_value or not time_value:
+        return None
+    if isinstance(date_value, datetime):
+        date_part = date_value.strftime("%Y-%m-%d")
+    else:
+        date_part = str(date_value).strip()[:10]
+    if isinstance(time_value, datetime):
+        time_part = time_value.strftime("%H:%M:%S")
+    else:
+        time_part = str(time_value).strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            return datetime.strptime(f"{date_part} {time_part}", fmt)
+        except (TypeError, ValueError):
+            continue
+    return None
+
 @app.get("/api/dashboard")
 def dashboard():
     if not authorized("admin"):
@@ -158,6 +178,60 @@ def dashboard():
         day = (current - timedelta(days=offset)).strftime("%Y-%m-%d")
         daily.append({"date": day, "out": sum(1 for m in movements if str(m.get("Exit_Date") or "") == day),
                       "in": sum(1 for m in movements if str(m.get("Entry_Date") or "") == day and m.get("Entry_Time"))})
+
+    # Calculate daily average inside/outside plant turnaround from paired scans.
+    tat_days = {}
+    for offset in range(6, -1, -1):
+        day = (current - timedelta(days=offset)).strftime("%Y-%m-%d")
+        tat_days[day] = {"date": day, "inside_sum": 0.0, "inside_count": 0,
+                         "outside_sum": 0.0, "outside_count": 0}
+
+    by_truck = {}
+    for movement in movements:
+        truck_key = str(movement.get("Truck_ID") or movement.get("Truck_Number") or "")
+        if truck_key:
+            by_truck.setdefault(truck_key, []).append(movement)
+
+    for truck_movements in by_truck.values():
+        truck_movements.sort(key=lambda m: (
+            parse_movement_datetime(m.get("Exit_Date"), m.get("Exit_Time")) or
+            parse_movement_datetime(m.get("Entry_Date"), m.get("Entry_Time")) or
+            datetime.min
+        ))
+        previous_return = None
+        for movement in truck_movements:
+            out_dt = parse_movement_datetime(movement.get("Exit_Date"), movement.get("Exit_Time"))
+            in_dt = parse_movement_datetime(movement.get("Entry_Date"), movement.get("Entry_Time"))
+
+            # Outside TAT: OUT to matching IN; attribute to the return (IN) date.
+            if out_dt and in_dt and in_dt >= out_dt:
+                day = in_dt.strftime("%Y-%m-%d")
+                if day in tat_days:
+                    tat_days[day]["outside_sum"] += (in_dt - out_dt).total_seconds() / 60
+                    tat_days[day]["outside_count"] += 1
+
+            # Inside TAT: previous IN to this truck's next OUT; attribute to OUT date.
+            if previous_return and out_dt and out_dt >= previous_return:
+                day = out_dt.strftime("%Y-%m-%d")
+                if day in tat_days:
+                    tat_days[day]["inside_sum"] += (out_dt - previous_return).total_seconds() / 60
+                    tat_days[day]["inside_count"] += 1
+
+            if in_dt:
+                previous_return = in_dt
+
+    tat_trend = []
+    for day_data in tat_days.values():
+        inside_count = day_data["inside_count"]
+        outside_count = day_data["outside_count"]
+        tat_trend.append({
+            "date": day_data["date"],
+            "avg_inside_minutes": round(day_data["inside_sum"] / inside_count, 1) if inside_count else None,
+            "inside_count": inside_count,
+            "avg_outside_minutes": round(day_data["outside_sum"] / outside_count, 1) if outside_count else None,
+            "outside_count": outside_count
+        })
+
     gate_summary = []
     for gate in ("Gate 3", "Gate 4"):
         gate_summary.append({"gate": gate,
@@ -171,7 +245,7 @@ def dashboard():
     return jsonify({"registered_trucks": len(trucks), "open_trips": len(open_trips),
         "out_today": len(out_today), "returned_today": len(returned_today), "avg_tat_today": avg_tat_today,
         "completed_today": len(completed_today), "open_truck_rows": open_rows, "daily_trend": daily,
-        "gate_summary": gate_summary, "agency_summary": agency_summary,
+        "gate_summary": gate_summary, "agency_summary": agency_summary, "tat_trend": tat_trend,
         "recent_movements": recent_movements})
 
 
