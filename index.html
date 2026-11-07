@@ -73,7 +73,8 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}h3{color:var(--navy)}.pill{p
 <div class="panel"><h2>Truck Master & QR Codes</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Truck ID</th><th>QR Code</th></tr></thead><tbody id="truckRows"></tbody></table></div></div>
 </section>
 <section id="records" class="tabbody hidden">
-<div class="panel"><h2>Movement Register</h2><p class="muted">Latest 30 records are shown here. Download the complete Excel workbook for historical records.</p><button class="secondary" onclick="downloadExcel()">Download Excel database</button><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry Date/Time</th><th>Entry Gate</th><th>Exit Date/Time</th><th>Exit Gate</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recordRows"></tbody></table></div></div>
+<div class="panel"><h2>Movement Register</h2><p class="muted">Latest 30 records are shown here. Download the complete Excel workbook for historical records. Administrator can delete an individual record below.</p><button class="secondary" onclick="downloadExcel()">Download Excel database</button><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry Date/Time</th><th>Entry Gate</th><th>Exit Date/Time</th><th>Exit Gate</th><th>TAT (min)</th><th>Status</th><th>Action</th></tr></thead><tbody id="recordRows"></tbody></table></div></div>
+<div class="panel"><h2>Data Management</h2><p class="muted">These actions permanently delete records. Download a backup Excel file before proceeding.</p><button class="danger" onclick="resetMovements()">Delete all movement records</button> <button class="danger" onclick="resetAllData()">Reset all data (trucks + movements)</button><div id="dataAdminMsg"></div><p class="muted"><b>Delete all movement records:</b> retains registered trucks and QR codes. <b>Reset all data:</b> deletes both truck registrations and all movement history.</p></div>
 </section>
 </div></div>
 <script>
@@ -127,7 +128,7 @@ async function refreshAll(){
     byId('sExited').textContent=d.exited_today;byId('sTat').textContent=d.avg_tat_minutes;
     byId('insideRows').innerHTML=d.inside_trucks.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Entry_Gate)}</td><td><span class="pill">INSIDE</span></td></tr>`).join('')||'<tr><td colspan="5">No trucks currently inside</td></tr>';
     byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Exit_Time||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
-    byId('recordRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Date)} ${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Entry_Gate)}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Exit_Gate||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td></tr>`).join('');
+    byId('recordRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Date)} ${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Entry_Gate)}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Exit_Gate||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td><td><button class="danger" onclick="deleteMovement('${encodeURIComponent(r.Movement_ID)}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="9">No movement records</td></tr>';
     let tr=await api('/api/trucks');
     byId('truckRows').innerHTML=tr.trucks.map(t=>`<tr><td>${escapeHtml(t.Truck_Number)}</td><td>${escapeHtml(t.Agency)}</td><td>${escapeHtml(t.Truck_ID)}</td><td><button onclick="showQR('${encodeURIComponent(t.Truck_ID)}','${encodeURIComponent(t.Truck_Number)}')">View / Print QR</button></td></tr>`).join('')||'<tr><td colspan="4">No trucks registered</td></tr>';
   }catch(e){if(e.message.toLowerCase().includes('access'))logout();else console.error(e)}
@@ -165,6 +166,36 @@ async function submitScan(raw){
   }catch(e){msg('scanMsg',e.message,true)}
 }
 function manualScan(){submitScan(byId('manualTruckId').value)}
+
+async function deleteMovement(encodedId){
+  if(userRole!=='admin')return;
+  const id=decodeURIComponent(encodedId);
+  if(!confirm('Delete this individual movement record permanently? Download an Excel backup first if required.'))return;
+  try{
+    await api('/api/movements/'+encodeURIComponent(id),{method:'DELETE'});
+    msg('dataAdminMsg','Selected movement record deleted.');
+    await refreshAll();
+  }catch(e){msg('dataAdminMsg',e.message,true)}
+}
+async function resetMovements(){
+  if(userRole!=='admin')return;
+  if(!confirm('This will permanently delete ALL movement history but retain truck registrations and QR codes. Continue?'))return;
+  if(prompt('Type DELETE MOVEMENTS to confirm')!=='DELETE MOVEMENTS'){msg('dataAdminMsg','Reset cancelled. Confirmation text did not match.',true);return;}
+  try{
+    let d=await api('/api/reset-movements',{method:'POST',body:JSON.stringify({})});
+    msg('dataAdminMsg',d.message);await refreshAll();
+  }catch(e){msg('dataAdminMsg',e.message,true)}
+}
+async function resetAllData(){
+  if(userRole!=='admin')return;
+  if(!confirm('WARNING: This permanently deletes ALL registered trucks, QR IDs and ALL movement records. This cannot be undone. Download an Excel backup first. Continue?'))return;
+  if(prompt('Type RESET ALL DATA to confirm')!=='RESET ALL DATA'){msg('dataAdminMsg','Reset cancelled. Confirmation text did not match.',true);return;}
+  try{
+    let d=await api('/api/reset-all',{method:'POST',body:JSON.stringify({})});
+    msg('dataAdminMsg',d.message);await refreshAll();
+  }catch(e){msg('dataAdminMsg',e.message,true)}
+}
+
 function downloadExcel(){
   if(userRole!=='admin')return;
   fetch('/api/export',{headers:{'X-Access-Code':code}}).then(async r=>{if(!r.ok){let j=await r.json();throw Error(j.error||'Export failed')}return r.blob()})
