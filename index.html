@@ -148,13 +148,20 @@ function showTab(t, skipRefresh=false){
 async function refreshAll(){
   if(userRole!=='admin')return;
   try{
-    let d=await api('/api/dashboard');
-    byId('sRegistered').textContent=d.registered_trucks;byId('sInside').textContent=d.inside;
-    byId('sExited').textContent=d.exited_today;byId('sTat').textContent=d.avg_tat_minutes;
-    byId('insideRows').innerHTML=d.inside_trucks.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Entry_Gate)}</td><td><span class="pill">INSIDE</span></td></tr>`).join('')||'<tr><td colspan="5">No trucks currently inside</td></tr>';
-    byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Exit_Time||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
-    byId('recordRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Date)} ${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Entry_Gate)}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Exit_Gate||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td><td><button class="danger" onclick="deleteMovement('${encodeURIComponent(r.Movement_ID)}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="9">No movement records</td></tr>';
-    let tr=await api('/api/trucks');
+    const d=await api('/api/dashboard');
+    byId('dashboardDate').textContent='Management snapshot · '+new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+    byId('sRegistered').textContent=d.registered_trucks;
+    byId('sOpen').textContent=d.open_trips;
+    byId('sOutToday').textContent=d.out_today;
+    byId('sInToday').textContent=d.returned_today;
+    byId('sTat').textContent=d.avg_tat_today;
+    byId('openRows').innerHTML=d.open_truck_rows.map(r=>`<tr><td><b>${escapeHtml(r.Truck_Number)}</b></td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.OUT_Date)} ${escapeHtml(r.OUT_Time)}</td><td>${escapeHtml(r.OUT_Gate)}</td><td class="status-open">${r.Age_Minutes===null?'-':escapeHtml(r.Age_Minutes)}</td></tr>`).join('')||'<tr><td colspan="5">No trucks currently awaiting return</td></tr>';
+    byId('gateRows').innerHTML=d.gate_summary.map(r=>`<tr><td><b>${escapeHtml(r.gate)}</b></td><td>${r.out}</td><td>${r.in}</td><td>${r.out+r.in}</td></tr>`).join('');
+    byId('trendRows').innerHTML=d.daily_trend.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${r.out}</td><td>${r.in}</td><td>${r.out-r.in}</td></tr>`).join('');
+    byId('agencyRows').innerHTML=d.agency_summary.map(r=>`<tr><td>${escapeHtml(r.agency)}</td><td>${r.trips}</td></tr>`).join('')||'<tr><td colspan="2">No agency data</td></tr>';
+    byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Exit_Date)} ${escapeHtml(r.Exit_Time)}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${r.Status==='OUTSIDE'?'<span class="status-open">OPEN / OUTSIDE</span>':'INSIDE'}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
+    byId('recordRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Exit_Gate||'-')}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.Entry_Gate||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td><td><button class="danger" onclick="deleteMovement('${encodeURIComponent(r.Movement_ID)}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="9">No movement records</td></tr>';
+    const tr=await api('/api/trucks');
     byId('truckRows').innerHTML=tr.trucks.map(t=>`<tr><td>${escapeHtml(t.Truck_Number)}</td><td>${escapeHtml(t.Agency)}</td><td>${escapeHtml(t.Truck_ID)}</td><td><button onclick="showQR('${encodeURIComponent(t.Truck_ID)}','${encodeURIComponent(t.Truck_Number)}')">View / Print QR</button></td></tr>`).join('')||'<tr><td colspan="4">No trucks registered</td></tr>';
   }catch(e){if(e.message.toLowerCase().includes('access'))logout();else console.error(e)}
 }
