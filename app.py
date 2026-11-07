@@ -120,6 +120,7 @@ def dashboard():
     } for m in active]
     recent = sorted(movements, key=lambda x: str(x.get("Movement_ID", "")), reverse=True)[:30]
     recent_movements = [{
+        "Movement_ID": m.get("Movement_ID") or "",
         "Truck_Number": m.get("Truck_Number") or "",
         "Agency": m.get("Agency") or "",
         "Entry_Date": m.get("Entry_Date") or "",
@@ -212,6 +213,52 @@ def scan_api():
             ws.cell(row_num, headers.index(key) + 1).value = value
         save_db(wb)
     return jsonify({"message": f"OUT recorded for {truck.get('Truck_Number')} at {time_s}", "tat_minutes": tat})
+
+
+@app.delete("/api/movements/<movement_id>")
+def delete_movement_api(movement_id):
+    """Delete one movement record. Administrator only."""
+    if not authorized("admin"):
+        return auth_error()
+    with LOCK:
+        wb = load_db()
+        ws = wb["Movements"]
+        headers = [c.value for c in ws[1]]
+        id_col = headers.index("Movement_ID") + 1
+        row_num = next((r for r in range(2, ws.max_row + 1)
+                        if str(ws.cell(r, id_col).value or "") == movement_id), None)
+        if row_num is None:
+            return jsonify({"error": "Movement record not found"}), 404
+        ws.delete_rows(row_num, 1)
+        save_db(wb)
+    return jsonify({"message": "Movement record deleted"})
+
+@app.post("/api/reset-movements")
+def reset_movements_api():
+    """Delete all movement history but retain registered trucks. Administrator only."""
+    if not authorized("admin"):
+        return auth_error()
+    with LOCK:
+        wb = load_db()
+        ws = wb["Movements"]
+        if ws.max_row > 1:
+            ws.delete_rows(2, ws.max_row - 1)
+        save_db(wb)
+    return jsonify({"message": "All movement records have been deleted. Truck master has been retained."})
+
+@app.post("/api/reset-all")
+def reset_all_api():
+    """Delete all movement history and all registered trucks. Administrator only."""
+    if not authorized("admin"):
+        return auth_error()
+    with LOCK:
+        wb = load_db()
+        for sheet_name, headers in (("Trucks", TRUCK_HEADERS), ("Movements", MOVEMENT_HEADERS)):
+            ws = wb[sheet_name]
+            if ws.max_row > 1:
+                ws.delete_rows(2, ws.max_row - 1)
+        save_db(wb)
+    return jsonify({"message": "All truck registrations and movement records have been deleted."})
 
 @app.get("/api/export")
 def export_api():
