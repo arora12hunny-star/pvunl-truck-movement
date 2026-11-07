@@ -201,7 +201,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <div><label>Truck type</label><input id="truckType" placeholder="Tipper / Trailer / Other"></div>
 <div><label>Driver name (optional)</label><input id="driverName" placeholder="Optional — not required for QR generation"></div>
 <div><label>Driver mobile (optional)</label><input id="driverMobile" inputmode="numeric" placeholder="Optional — not required for QR generation"></div>
-</div><button class="primary" onclick="registerTruck()">Register truck & generate QR</button><div id="registerMsg"></div></div>
+</div><button class="primary" onclick="registerTruck()">Register truck & generate QR</button><div id="registerMsg"></div><div id="qrPreview" class="panel hidden" style="margin-top:14px;text-align:center"><h3>Truck QR Code</h3><div id="qrImage" style="display:inline-block;padding:12px;background:#fff;border:1px solid #dce4ed;border-radius:8px"></div><p id="qrTruckLabel" style="font-weight:bold"></p><p class="muted">Scan this QR using the mobile phone camera to open the gate movement screen.</p><p id="qrLink" class="muted" style="overflow-wrap:anywhere"></p><button class="secondary" onclick="printTruckQR()">Print QR Code</button></div></div>
 <div class="panel"><h2>Truck Master & QR Codes</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Truck ID</th><th>QR Code</th></tr></thead><tbody id="truckRows"></tbody></table></div></div>
 </section>
 <section id="records" class="tabbody hidden">
@@ -346,10 +346,26 @@ async function registerTruck(){
 }
 function showQR(id,num){
   if(userRole!=='admin')return;
-  let truckId=decodeURIComponent(id),truckNo=decodeURIComponent(num),w=window.open('','_blank','width=360,height=460');
-  let directUrl=window.location.origin+'/?truck_id='+encodeURIComponent(truckId);
-  w.document.write(`<html><head><title>PVUNL Truck QR</title></head><body style="font-family:Arial;text-align:center;padding:20px"><h3>PVUNL Truck QR</h3><div id="q" style="display:inline-block"></div><p><b>${escapeHtml(truckNo)}</b></p><p>${escapeHtml(truckId)}</p><small>Scan with mobile camera to open gate movement form</small><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\\/script><script>new QRCode(document.getElementById('q'),{text:${JSON.stringify(directUrl)},width:220,height:220});setTimeout(()=>window.print(),500)<\\/script></body></html>`);
-  w.document.close();
+  const truckId=decodeURIComponent(id),truckNo=decodeURIComponent(num);
+  const directUrl=window.location.origin+'/?truck_id='+encodeURIComponent(truckId);
+  byId('qrPreview').classList.remove('hidden');
+  byId('qrImage').innerHTML='';
+  byId('qrTruckLabel').textContent=truckNo+' | '+truckId;
+  byId('qrLink').textContent=directUrl;
+  if(!window.QRCode){msg('registerMsg','QR library could not load. Please refresh and try again.',true);return;}
+  new QRCode(byId('qrImage'),{text:directUrl,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+  byId('qrPreview').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function printTruckQR(){
+  if(userRole!=='admin')return;
+  const truckLabel=byId('qrTruckLabel').textContent,link=byId('qrLink').textContent;
+  const image=byId('qrImage').querySelector('canvas, img');
+  if(!image){alert('QR code is not ready yet.');return;}
+  const data=image.tagName==='CANVAS'?image.toDataURL('image/png'):image.src;
+  const w=window.open('','_blank','width=420,height=520');
+  if(!w){alert('Please allow pop-ups to print the QR code. The QR remains visible on this page.');return;}
+  w.document.write('<html><head><title>PVUNL Truck QR</title></head><body style="font-family:Arial;text-align:center;padding:24px"><h2>PVUNL Truck QR</h2><img style="width:240px;height:240px" src="'+data+'"><p><b>'+escapeHtml(truckLabel)+'</b></p><p style="font-size:12px;overflow-wrap:anywhere">'+escapeHtml(link)+'</p></body></html>');
+  w.document.close();w.focus();setTimeout(()=>w.print(),300);
 }
 async function startScanner(){
   if(!window.Html5Qrcode){msg('scanMsg','QR scanner library could not load. Check internet connectivity.',true);return}
