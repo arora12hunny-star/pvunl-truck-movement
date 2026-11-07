@@ -18,7 +18,17 @@ label{display:block;font-weight:600;font-size:13px;margin:10px 0 5px}input,selec
 table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}th{background:#eef3f8;color:#294763}
 .tablewrap{overflow:auto}.muted{color:#68798a;font-size:13px}.hidden{display:none!important}.notice{padding:11px;border-radius:8px;margin:10px 0;background:#edf4fb}.notice.error{background:#fff0ef;color:#9a2822}.notice.ok{background:#eaf7ee;color:#17683b}
 #reader{max-width:430px;margin:12px auto}.qrbox{display:flex;align-items:center;gap:20px;flex-wrap:wrap}.qr{padding:12px;border:1px solid var(--line);border-radius:8px;min-width:150px;min-height:150px;display:flex;align-items:center;justify-content:center}
-h2{margin:0 0 12px;font-size:19px;color:var(--navy)}h3{color:var(--navy)}.pill{padding:4px 8px;border-radius:20px;background:#e8f5ec;color:#17683b;font-weight:bold}
+h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
+.management-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 14px}
+.management-head h2{font-size:22px;margin:0}.management-head p{margin:5px 0 0}
+.management-kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:14px}
+.management-kpis .stat{background:#fff;border-top:3px solid #7895b2}
+.management-kpis .stat b{font-size:30px}
+.management-kpis .stat small{display:block;color:#68798a;margin-top:5px;font-size:12px}
+.management-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,1fr);gap:14px}
+.panel-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.panel-heading h2{margin:0}.status-open{color:#9a4b12;font-weight:bold}
+@media(max-width:800px){.management-grid{grid-template-columns:1fr}}h3{color:var(--navy)}.pill{padding:4px 8px;border-radius:20px;background:#e8f5ec;color:#17683b;font-weight:bold}
 @media(max-width:600px){header{padding:14px}.wrap{margin:12px auto}.panel{padding:13px}.tab{flex:1}}
 </style></head>
 <body>
@@ -43,15 +53,23 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}h3{color:var(--navy)}.pill{p
 <button class="tab" onclick="logout()">Sign out</button>
 </div>
 <section id="dashboard" class="tabbody">
-<div class="grid">
-<div class="stat"><span>Registered Trucks</span><b id="sRegistered">0</b></div>
-<div class="stat"><span>Currently Inside</span><b id="sInside">0</b></div>
-<div class="stat"><span>Exited Today</span><b id="sExited">0</b></div>
-<div class="stat"><span>Average TAT (minutes)</span><b id="sTat">0</b></div>
+<div class="management-head"><div><h2>Management Overview</h2><p class="muted" id="dashboardDate">Daily fleet movement and turnaround position</p></div><div><button onclick="refreshAll()">Refresh</button> <button class="secondary" onclick="downloadExcel()">Export Excel</button></div></div>
+<div class="grid management-kpis">
+<div class="stat"><span>Registered Fleet</span><b id="sRegistered">0</b><small>Trucks in master</small></div>
+<div class="stat"><span>Open Trips / Outside</span><b id="sOpen">0</b><small>Awaiting return IN scan</small></div>
+<div class="stat"><span>OUT Scans Today</span><b id="sOutToday">0</b><small>Truck departures</small></div>
+<div class="stat"><span>IN Scans Today</span><b id="sInToday">0</b><small>Truck returns</small></div>
+<div class="stat"><span>Average TAT Today</span><b id="sTat">0</b><small>Minutes · completed trips</small></div>
 </div>
-<div class="panel" style="margin-top:14px"><h2>Trucks Currently Inside Plant</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry Time</th><th>Gate</th><th>Status</th></tr></thead><tbody id="insideRows"></tbody></table></div></div>
-<div class="panel"><h2>Recent Movement</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry</th><th>Exit</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
-<button onclick="refreshAll()">Refresh dashboard</button> <button class="secondary" onclick="downloadExcel()">Download Excel database</button>
+<div class="management-grid">
+<div class="panel"><div class="panel-heading"><h2>Open Trips – Follow-up Required</h2><span class="muted">Oldest OUT scans first</span></div><div class="tablewrap"><table><thead><tr><th>Truck</th><th>Agency</th><th>OUT Time</th><th>Gate</th><th>Elapsed (min)</th></tr></thead><tbody id="openRows"></tbody></table></div></div>
+<div class="panel"><div class="panel-heading"><h2>Today’s Gate Performance</h2><span class="muted">OUT / IN scans</span></div><div class="tablewrap"><table><thead><tr><th>Gate</th><th>OUT</th><th>IN</th><th>Total</th></tr></thead><tbody id="gateRows"></tbody></table></div></div>
+</div>
+<div class="management-grid">
+<div class="panel"><div class="panel-heading"><h2>7-Day Movement Trend</h2><span class="muted">Daily OUT and IN volume</span></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>OUT</th><th>IN</th><th>Net movement</th></tr></thead><tbody id="trendRows"></tbody></table></div></div>
+<div class="panel"><div class="panel-heading"><h2>Agency-wise Movement</h2><span class="muted">Top agencies · all records</span></div><div class="tablewrap"><table><thead><tr><th>Agency</th><th>Trips</th></tr></thead><tbody id="agencyRows"></tbody></table></div></div>
+</div>
+<div class="panel"><div class="panel-heading"><h2>Recent Movement Register</h2><span class="muted">Latest 30 records</span></div><div class="tablewrap"><table><thead><tr><th>Truck</th><th>Agency</th><th>OUT</th><th>IN</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
 </section>
 <section id="settings" class="tabbody hidden">
 <div class="panel" style="margin-top:14px"><h2>Gate Operator Password</h2>
