@@ -7,15 +7,37 @@ from io import BytesIO
 from threading import RLock
 import os
 import uuid
+import json
+import hashlib
 
 APP_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("PVUNL_DATA_DIR", str(APP_DIR)))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_FILE = DATA_DIR / "PVUNL_Truck_Movement.xlsx"
 ADMIN_ACCESS_CODE = os.environ.get("PVUNL_ADMIN_CODE", "PVUNL2026")
-OPERATOR_ACCESS_CODE = os.environ.get("PVUNL_OPERATOR_CODE", "PVUNL-OPS-2026")
 TZ = timezone(timedelta(hours=5, minutes=30), name="IST")
 LOCK = RLock()
+OPERATOR_CONFIG_FILE = DATA_DIR / "operator_access.json"
+
+def password_hash(value):
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+def get_operator_password_hash():
+    if OPERATOR_CONFIG_FILE.exists():
+        try:
+            saved = json.loads(OPERATOR_CONFIG_FILE.read_text(encoding="utf-8"))
+            if saved.get("password_hash"):
+                return saved["password_hash"]
+        except Exception:
+            app.logger.exception("Could not read operator password configuration")
+    initial_password = os.environ.get("PVUNL_OPERATOR_CODE", "PVUNL2028")
+    return password_hash(initial_password)
+
+def save_operator_password(new_password):
+    payload = {"password_hash": password_hash(new_password)}
+    temp_file = OPERATOR_CONFIG_FILE.with_suffix(".tmp")
+    temp_file.write_text(json.dumps(payload), encoding="utf-8")
+    temp_file.replace(OPERATOR_CONFIG_FILE)
 
 app = Flask(__name__, static_folder=None)
 
@@ -60,7 +82,7 @@ def get_role():
     supplied = request.headers.get("X-Access-Code", "")
     if supplied and supplied == ADMIN_ACCESS_CODE:
         return "admin"
-    if supplied and supplied == OPERATOR_ACCESS_CODE:
+    if supplied and password_hash(supplied) == get_operator_password_hash():
         return "operator"
     return None
 
@@ -81,7 +103,7 @@ def login_api():
     supplied = str(data.get("access_code", "")).strip()
     if supplied == ADMIN_ACCESS_CODE:
         return jsonify({"ok": True, "role": "admin"})
-    if supplied == OPERATOR_ACCESS_CODE:
+    if password_hash(supplied) == get_operator_password_hash():
         return jsonify({"ok": True, "role": "operator"})
     return jsonify({"error": "Invalid access code"}), 401
 
@@ -168,7 +190,9 @@ def scan_api():
     data = request.get_json(silent=True) or {}
     truck_id = str(data.get("truck_id", "")).strip()
     action = str(data.get("action", "")).lower().strip()
-    gate = str(data.get("gate", "Main Gate")).strip() or "Main Gate"
+    gate = str(data.get("gate", "")).strip()
+    if gate not in ("Gate 3", "Gate 4"):
+        return jsonify({"error": "Please select Gate 3 or Gate 4"}), 400
     if action not in ("entry", "exit"):
         return jsonify({"error": "Select a valid movement action (IN or OUT)"}), 400
     with LOCK:
@@ -179,41 +203,50 @@ def scan_api():
             return jsonify({"error": "Truck ID not found. Register the truck first."}), 404
         ws = wb["Movements"]
         movements = rows_as_dict(ws)
-        active = next((m for m in reversed(movements)
-                       if str(m.get("Truck_ID", "")) == truck_id and str(m.get("Status", "")).upper() == "INSIDE"), None)
+        active_out = next((m for m in reversed(movements) if str(m.get("Truck_ID", "")) == truck_id and str(m.get("Status", "")).upper() == "OUTSIDE"), None)
         current = now_local()
         date_s, time_s = current.strftime("%Y-%m-%d"), current.strftime("%H:%M:%S")
-        if action == "entry":
-            if active:
-                return jsonify({"error": "This truck is already recorded INSIDE the plant."}), 409
+        if action == "exit":
+            if active_out:
+                return jsonify({"error": "This truck is already recorded OUTSIDE. Record IN before another OUT."}), 409
             movement_id = "MOV-" + uuid.uuid4().hex[:12].upper()
-            ws.append([movement_id, truck_id, truck.get("Truck_Number"), truck.get("Agency"),
-                       date_s, time_s, gate, "", "", "", None, "INSIDE"])
+            ws.append([movement_id, truck_id, truck.get("Truck_Number"), truck.get("Agency"), "", "", "", date_s, time_s, gate, None, "OUTSIDE"])
             save_db(wb)
-            return jsonify({"message": f"IN recorded for {truck.get('Truck_Number')} at {time_s}"})
-        if not active:
-            return jsonify({"error": "No open entry found for this truck. Record IN before OUT."}), 409
+            return jsonify({"message": f"OUT recorded for {truck.get('Truck_Number')} at {time_s}. Awaiting IN."})
+        if not active_out:
+            return jsonify({"error": "No open OUT record found for this truck. Record OUT before IN."}), 409
         try:
-            entry_dt = datetime.strptime(f"{active.get('Entry_Date')} {active.get('Entry_Time')}", "%Y-%m-%d %H:%M:%S")
-            tat = max(0, round((current.replace(tzinfo=None) - entry_dt).total_seconds() / 60, 1))
+            out_dt = datetime.strptime(f"{active_out.get('Exit_Date')} {active_out.get('Exit_Time')}", "%Y-%m-%d %H:%M:%S")
+            tat = max(0, round((current.replace(tzinfo=None) - out_dt).total_seconds() / 60, 1))
         except Exception:
             tat = None
-        # Update the active movement row in place.
         headers = [c.value for c in ws[1]]
         row_num = None
         for idx in range(2, ws.max_row + 1):
-            if str(ws.cell(idx, headers.index("Movement_ID") + 1).value) == str(active.get("Movement_ID")):
+            if str(ws.cell(idx, headers.index("Movement_ID") + 1).value) == str(active_out.get("Movement_ID")):
                 row_num = idx
                 break
         if row_num is None:
             return jsonify({"error": "Movement record could not be located"}), 500
-        updates = {"Exit_Date": date_s, "Exit_Time": time_s, "Exit_Gate": gate,
-                   "TAT_Minutes": tat, "Status": "EXITED"}
+        updates = {"Entry_Date": date_s, "Entry_Time": time_s, "Entry_Gate": gate, "TAT_Minutes": tat, "Status": "INSIDE"}
         for key, value in updates.items():
             ws.cell(row_num, headers.index(key) + 1).value = value
         save_db(wb)
-    return jsonify({"message": f"OUT recorded for {truck.get('Truck_Number')} at {time_s}", "tat_minutes": tat})
+        return jsonify({"message": f"IN recorded for {truck.get('Truck_Number')} at {time_s}", "tat_minutes": tat})
 
+@app.post("/api/operator-password")
+def change_operator_password_api():
+    if not authorized("admin"):
+        return auth_error()
+    data = request.get_json(silent=True) or {}
+    new_password = str(data.get("new_password", "")).strip()
+    if len(new_password) < 8:
+        return jsonify({"error": "Operator password must contain at least 8 characters"}), 400
+    if new_password == ADMIN_ACCESS_CODE:
+        return jsonify({"error": "Operator password must be different from administrator password"}), 400
+    with LOCK:
+        save_operator_password(new_password)
+    return jsonify({"message": "Gate Operator password updated successfully."})
 
 @app.delete("/api/movements/<movement_id>")
 def delete_movement_api(movement_id):
