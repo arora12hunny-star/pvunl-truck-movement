@@ -35,6 +35,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}h3{color:var(--navy)}.pill{p
 <button class="tab" data-tab="scan" onclick="showTab('scan')">Gate Scanning</button>
 <button class="tab" data-tab="register" onclick="showTab('register')">Truck Registration</button>
 <button class="tab" data-tab="records" onclick="showTab('records')">Movement Records</button>
+<button class="tab" data-tab="settings" onclick="showTab('settings')">Settings</button>
 <button class="tab" onclick="logout()">Sign out</button>
 </div>
 <div id="operatorTabs" class="tabs hidden">
@@ -50,7 +51,10 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}h3{color:var(--navy)}.pill{p
 </div>
 <div class="panel" style="margin-top:14px"><h2>Trucks Currently Inside Plant</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry Time</th><th>Gate</th><th>Status</th></tr></thead><tbody id="insideRows"></tbody></table></div></div>
 <div class="panel"><h2>Recent Movement</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry</th><th>Exit</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
-<button onclick="refreshAll()">Refresh dashboard</button> <button class="secondary" onclick="downloadExcel()">Download Excel database</button><div class="panel" style="margin-top:14px"><h2>Gate Operator Password</h2>
+<button onclick="refreshAll()">Refresh dashboard</button> <button class="secondary" onclick="downloadExcel()">Download Excel database</button>
+</section>
+<section id="settings" class="tabbody hidden">
+<div class="panel" style="margin-top:14px"><h2>Gate Operator Password</h2>
 <p class="muted">Default operator password: PVUNL2028. Administrator can change it here. The new password applies to all Gate Operator logins.</p>
 <label>New operator password (minimum 8 characters)</label><input id="newOperatorPassword" type="password" placeholder="Enter new operator password">
 <button class="primary" onclick="changeOperatorPassword()">Change operator password</button><div id="operatorPasswordMsg"></div></div>
