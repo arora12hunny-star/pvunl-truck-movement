@@ -270,6 +270,45 @@ def dashboard():
         for field in ("inside_sum", "outside_sum", "longest_outside"): item.pop(field, None)
     truck_performance = sorted(truck_perf.values(), key=lambda x: x["truck_number"])
 
+    # Per-truck lifetime metrics, based on completed IN/OUT cycles.
+    truck_perf = {}
+    for truck in trucks:
+        key = str(truck.get("Truck_ID") or "")
+        if key:
+            truck_perf[key] = {"truck_number": truck.get("Truck_Number") or "", "agency": truck.get("Agency") or "", "completed_trips": 0, "inside_sum": 0.0, "inside_count": 0, "outside_sum": 0.0, "outside_count": 0, "longest_outside": 0.0, "current_status": "INSIDE PLANT", "open_since": ""}
+    for key, item in truck_perf.items():
+        truck_movements = [m for m in movements if str(m.get("Truck_ID") or "") == key]
+        truck_movements.sort(key=lambda m: parse_movement_datetime(m.get("Exit_Date"), m.get("Exit_Time")) or parse_movement_datetime(m.get("Entry_Date"), m.get("Entry_Time")) or datetime.min)
+        previous_return = None
+        for movement in truck_movements:
+            out_dt = parse_movement_datetime(movement.get("Exit_Date"), movement.get("Exit_Time"))
+            in_dt = parse_movement_datetime(movement.get("Entry_Date"), movement.get("Entry_Time"))
+            if out_dt and in_dt and in_dt >= out_dt:
+                mins = (in_dt - out_dt).total_seconds() / 60
+                item["outside_sum"] += mins
+                item["outside_count"] += 1
+                item["completed_trips"] += 1
+                item["longest_outside"] = max(item["longest_outside"], mins)
+            if previous_return and out_dt and out_dt >= previous_return:
+                item["inside_sum"] += (out_dt - previous_return).total_seconds() / 60
+                item["inside_count"] += 1
+            if in_dt:
+                previous_return = in_dt
+            if str(movement.get("Status") or "").upper() == "OUTSIDE" and out_dt:
+                item["current_status"] = "OUTSIDE PLANT"
+                item["open_since"] = out_dt.strftime("%Y-%m-%d %H:%M:%S")
+            elif in_dt:
+                item["current_status"] = "INSIDE PLANT"
+                item["open_since"] = ""
+        item["avg_inside_minutes"] = round(item["inside_sum"] / item["inside_count"], 1) if item["inside_count"] else None
+        item["avg_outside_minutes"] = round(item["outside_sum"] / item["outside_count"], 1) if item["outside_count"] else None
+        item["longest_outside_minutes"] = round(item["longest_outside"], 1) if item["outside_count"] else None
+        for field in ("inside_sum", "inside_count", "outside_sum", "outside_count", "longest_outside"):
+            if field in ("inside_count", "outside_count"):
+                continue
+            item.pop(field, None)
+    truck_performance = sorted(truck_perf.values(), key=lambda x: x["truck_number"])
+
     gate_summary = []
     for gate in ("Gate 3", "Gate 4"):
         gate_summary.append({"gate": gate,
