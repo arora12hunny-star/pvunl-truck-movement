@@ -25,7 +25,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 .management-kpis .stat{background:#fff;border-top:3px solid #7895b2}
 .management-kpis .stat b{font-size:30px}
 .management-kpis .stat small{display:block;color:#68798a;margin-top:5px;font-size:12px}
-.management-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,1fr);gap:14px}
+.management-grid{display:grid;grid-template-columns:1fr;gap:14px}
 .panel-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .panel-heading h2{margin:0}.status-open{color:#9a4b12;font-weight:bold}
 @media(max-width:800px){.management-grid{grid-template-columns:1fr}}h3{color:var(--navy)}.pill{padding:4px 8px;border-radius:20px;background:#e8f5ec;color:#17683b;font-weight:bold}
@@ -64,10 +64,6 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <div class="management-grid">
 <div class="panel"><div class="panel-heading"><h2>Open Trips – Follow-up Required</h2><span class="muted">Oldest OUT scans first</span></div><div class="tablewrap"><table><thead><tr><th>Truck</th><th>Agency</th><th>OUT Time</th><th>Gate</th><th>Elapsed (min)</th></tr></thead><tbody id="openRows"></tbody></table></div></div>
 <div class="panel"><div class="panel-heading"><h2>Today’s Gate Performance</h2><span class="muted">OUT / IN scans</span></div><div class="tablewrap"><table><thead><tr><th>Gate</th><th>OUT</th><th>IN</th><th>Total</th></tr></thead><tbody id="gateRows"></tbody></table></div></div>
-</div>
-<div class="management-grid">
-<div class="panel"><div class="panel-heading"><h2>7-Day Movement Trend</h2><span class="muted">Daily OUT and IN volume</span></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>OUT</th><th>IN</th><th>Net movement</th></tr></thead><tbody id="trendRows"></tbody></table></div></div>
-<div class="panel"><div class="panel-heading"><h2>Agency-wise Movement</h2><span class="muted">Top agencies · all records</span></div><div class="tablewrap"><table><thead><tr><th>Agency</th><th>Trips</th></tr></thead><tbody id="agencyRows"></tbody></table></div></div>
 </div>
 <div class="panel"><div class="panel-heading"><h2>Recent Movement Register</h2><span class="muted">Latest 30 records</span></div><div class="tablewrap"><table><thead><tr><th>Truck</th><th>Agency</th><th>OUT</th><th>IN</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
 </section>
@@ -158,7 +154,6 @@ async function refreshAll(){
     byId('openRows').innerHTML=d.open_truck_rows.map(r=>`<tr><td><b>${escapeHtml(r.Truck_Number)}</b></td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.OUT_Date)} ${escapeHtml(r.OUT_Time)}</td><td>${escapeHtml(r.OUT_Gate)}</td><td class="status-open">${r.Age_Minutes===null?'-':escapeHtml(r.Age_Minutes)}</td></tr>`).join('')||'<tr><td colspan="5">No trucks currently awaiting return</td></tr>';
     byId('gateRows').innerHTML=d.gate_summary.map(r=>`<tr><td><b>${escapeHtml(r.gate)}</b></td><td>${r.out}</td><td>${r.in}</td><td>${r.out+r.in}</td></tr>`).join('');
     byId('trendRows').innerHTML=d.daily_trend.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${r.out}</td><td>${r.in}</td><td>${r.out-r.in}</td></tr>`).join('');
-    byId('agencyRows').innerHTML=d.agency_summary.map(r=>`<tr><td>${escapeHtml(r.agency)}</td><td>${r.trips}</td></tr>`).join('')||'<tr><td colspan="2">No agency data</td></tr>';
     byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Exit_Date)} ${escapeHtml(r.Exit_Time)}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${r.Status==='OUTSIDE'?'<span class="status-open">OPEN / OUTSIDE</span>':'INSIDE'}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
     byId('recordRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Exit_Gate||'-')}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.Entry_Gate||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td><td><button class="danger" onclick="deleteMovement('${encodeURIComponent(r.Movement_ID)}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="9">No movement records</td></tr>';
     const tr=await api('/api/trucks');
