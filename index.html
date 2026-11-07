@@ -210,7 +210,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 </section>
 </div></div>
 <script>
-let code=sessionStorage.getItem('pvunl_code')||'', userRole=sessionStorage.getItem('pvunl_role')||'', scanner=null;
+let code=sessionStorage.getItem('pvunl_code')||localStorage.getItem('pvunl_operator_code')||'', userRole=sessionStorage.getItem('pvunl_role')||localStorage.getItem('pvunl_operator_role')||'', scanner=null;
 const pendingTruckId=new URLSearchParams(window.location.search).get('truck_id')||'';
 const byId = id => document.getElementById(id);
 async function api(path,opts={}){
@@ -231,7 +231,7 @@ async function login(){
     let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({access_code:code})});
     let d=await r.json(); if(!r.ok)throw Error(d.error||'Sign-in failed');
     userRole=d.role;
-    sessionStorage.setItem('pvunl_code',code);sessionStorage.setItem('pvunl_role',userRole);
+    sessionStorage.setItem('pvunl_code',code);sessionStorage.setItem('pvunl_role',userRole);if(userRole==='operator'){localStorage.setItem('pvunl_operator_code',code);localStorage.setItem('pvunl_operator_role','operator');}else{localStorage.removeItem('pvunl_operator_code');localStorage.removeItem('pvunl_operator_role');}
     byId('login').classList.add('hidden');byId('app').classList.remove('hidden');
     byId('sessionLabel').textContent=userRole==='admin'?'Administrator':'Gate Operator';
     byId('adminTabs').classList.toggle('hidden',userRole!=='admin');
@@ -242,7 +242,7 @@ async function login(){
   }catch(e){msg('loginMsg',e.message,true)}
 }
 function logout(){
-  stopScanner();sessionStorage.removeItem('pvunl_code');sessionStorage.removeItem('pvunl_role');
+  stopScanner();sessionStorage.removeItem('pvunl_code');sessionStorage.removeItem('pvunl_role');localStorage.removeItem('pvunl_operator_code');localStorage.removeItem('pvunl_operator_role');
   code='';userRole='';byId('app').classList.add('hidden');byId('login').classList.remove('hidden');
   byId('accessCode').value='';byId('sessionLabel').textContent='Not signed in';
   byId('adminTabs').classList.add('hidden');byId('operatorTabs').classList.add('hidden');
