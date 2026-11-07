@@ -178,6 +178,13 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <button class="primary" onclick="changeOperatorPassword()">Change operator password</button><div id="operatorPasswordMsg"></div></div>
 </section>
 <section id="scan" class="tabbody hidden">
+<div id="directMovement" class="panel hidden" style="border:2px solid #2b9b70;background:#f8fffb">
+<h2>Quick Gate Movement</h2><p class="muted">Truck identified from its QR code. Verify the truck and select the gate and movement.</p>
+<div class="notice ok" id="directTruckInfo">Loading truck details…</div>
+<div class="row"><div><label>Gate</label><select id="directGate"><option value="Gate 3">Gate No. 3</option><option value="Gate 4">Gate No. 4</option></select></div>
+<div><label>Movement action</label><select id="directAction"><option value="exit">OUT – Truck Exit</option><option value="entry">IN – Truck Return</option></select></div></div>
+<button class="success primary" onclick="recordDirectMovement()">Confirm & Record Movement</button><div id="directMsg"></div>
+</div>
 <div class="panel"><h2>Gate QR Scanning</h2><div class="row">
 <div><label>Gate</label><select id="gate"><option value="Gate 3">Gate No. 3</option><option value="Gate 4">Gate No. 4</option></select></div>
 <div><label>Movement action</label><select id="action"><option value="exit">OUT – Truck Exit (first)</option><option value="entry">IN – Truck Return</option></select></div>
@@ -204,6 +211,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 </div></div>
 <script>
 let code=sessionStorage.getItem('pvunl_code')||'', userRole=sessionStorage.getItem('pvunl_role')||'', scanner=null;
+const pendingTruckId=new URLSearchParams(window.location.search).get('truck_id')||'';
 const byId = id => document.getElementById(id);
 async function api(path,opts={}){
   opts.headers={...(opts.headers||{}),'Content-Type':'application/json','X-Access-Code':code};
@@ -230,6 +238,7 @@ async function login(){
     byId('operatorTabs').classList.toggle('hidden',userRole!=='operator');
     if(userRole==='admin'){showTab('dashboard',true);await refreshAll();}
     else{showTab('scan');}
+    if(pendingTruckId){showTab('scan',true);await loadDirectTruck();}
   }catch(e){msg('loginMsg',e.message,true)}
 }
 function logout(){
@@ -338,7 +347,8 @@ async function registerTruck(){
 function showQR(id,num){
   if(userRole!=='admin')return;
   let truckId=decodeURIComponent(id),truckNo=decodeURIComponent(num),w=window.open('','_blank','width=360,height=460');
-  w.document.write(`<html><head><title>PVUNL Truck QR</title></head><body style="font-family:Arial;text-align:center;padding:20px"><h3>PVUNL Truck QR</h3><div id="q" style="display:inline-block"></div><p><b>${escapeHtml(truckNo)}</b></p><p>${escapeHtml(truckId)}</p><small>PVUNL Truck Movement System</small><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script><script>new QRCode(document.getElementById('q'),{text:${JSON.stringify(truckId)},width:220,height:220});setTimeout(()=>window.print(),500)<\/script></body></html>`);
+  let directUrl=window.location.origin+'/?truck_id='+encodeURIComponent(truckId);
+  w.document.write(`<html><head><title>PVUNL Truck QR</title></head><body style="font-family:Arial;text-align:center;padding:20px"><h3>PVUNL Truck QR</h3><div id="q" style="display:inline-block"></div><p><b>${escapeHtml(truckNo)}</b></p><p>${escapeHtml(truckId)}</p><small>Scan with mobile camera to open gate movement form</small><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\\/script><script>new QRCode(document.getElementById('q'),{text:${JSON.stringify(directUrl)},width:220,height:220});setTimeout(()=>window.print(),500)<\\/script></body></html>`);
   w.document.close();
 }
 async function startScanner(){
@@ -350,8 +360,24 @@ async function startScanner(){
   }catch(e){msg('scanMsg','Unable to start camera: '+e+'. Use HTTPS and allow camera permission.',true)}
 }
 async function stopScanner(){if(scanner){try{if(scanner.isScanning)await scanner.stop()}catch(e){}}}
+function extractTruckId(raw){
+  const value=String(raw||'').trim();
+  try{const u=new URL(value);const id=u.searchParams.get('truck_id');if(id)return id;}catch(e){}
+  return value.startsWith('PVUNL:')?value.slice(6):value;
+}
+async function loadDirectTruck(){
+  if(!pendingTruckId)return;
+  byId('directMovement').classList.remove('hidden');
+  try{const d=await api('/api/truck-lookup/'+encodeURIComponent(pendingTruckId));byId('directTruckInfo').innerHTML='<b>Truck:</b> '+escapeHtml(d.truck_number)+' &nbsp; | &nbsp; <b>Agency:</b> '+escapeHtml(d.agency||'Not specified');}
+  catch(e){byId('directTruckInfo').className='notice error';byId('directTruckInfo').textContent=e.message;}
+}
+async function recordDirectMovement(){
+  if(!pendingTruckId)return;
+  try{const d=await api('/api/scan',{method:'POST',body:JSON.stringify({truck_id:pendingTruckId,action:byId('directAction').value,gate:byId('directGate').value})});msg('directMsg',d.message+(d.tat_minutes!==undefined?' | TAT: '+d.tat_minutes+' minutes':''));if(userRole==='admin')await refreshAll();}
+  catch(e){msg('directMsg',e.message,true)}
+}
 async function submitScan(raw){
-  let truckId=String(raw).trim();if(truckId.startsWith('PVUNL:'))truckId=truckId.slice(6);
+  let truckId=extractTruckId(raw);
   try{
     let d=await api('/api/scan',{method:'POST',body:JSON.stringify({truck_id:truckId,action:byId('action').value,gate:byId('gate').value})});
     msg('scanMsg',d.message+(d.tat_minutes!==undefined?' | TAT: '+d.tat_minutes+' minutes':''));
