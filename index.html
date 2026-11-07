@@ -29,6 +29,47 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 .panel-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .panel-heading h2{margin:0}.status-open{color:#9a4b12;font-weight:bold}
 @media(max-width:800px){.management-grid{grid-template-columns:1fr}}h3{color:var(--navy)}.pill{padding:4px 8px;border-radius:20px;background:#e8f5ec;color:#17683b;font-weight:bold}
+
+/* Management dashboard visual system */
+#dashboard{color:#1b2d42}
+.dash-hero{background:linear-gradient(115deg,#102f50 0%,#1d527e 65%,#286b92 100%);color:#fff;border-radius:16px;padding:25px 27px;margin:2px 0 17px;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:0 10px 28px #173b6022}
+.dash-hero h2{color:#fff;font-size:25px;letter-spacing:.1px;margin:7px 0 5px}.dash-hero p{margin:0;color:#d2e1ee;font-size:13px}
+.eyebrow{font-size:10px;letter-spacing:1.6px;font-weight:800;color:#b9d1e5}.eyebrow.dark{color:#6b8298}
+.hero-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.hero-actions button{padding:10px 13px;border-radius:8px;font-size:12px}
+.hero-refresh{background:#ffffff20;border:1px solid #ffffff55}.hero-export{background:#fff;color:#173b60}
+.live-indicator{font-size:11px;color:#e5f2fb;margin-right:7px;white-space:nowrap}.live-indicator i{display:inline-block;width:7px;height:7px;background:#53d69a;border-radius:50%;margin-right:6px;box-shadow:0 0 0 4px #53d69a22}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:15px}
+.kpi-card{background:#fff;border:1px solid #e3eaf1;border-radius:13px;padding:16px 17px;min-width:0;box-shadow:0 3px 12px #183b6008;border-top:3px solid #6b93b8}
+.kpi-amber{border-top-color:#d89a35}.kpi-slate{border-top-color:#74869a}.kpi-green{border-top-color:#2d9a6b}.kpi-violet{border-top-color:#8874bd}
+.kpi-top{display:flex;justify-content:space-between;align-items:center;gap:5px;color:#718297;font-size:9px;font-weight:800;letter-spacing:1px}
+.kpi-icon{width:27px;height:27px;border-radius:8px;background:#edf3f8;display:grid;place-items:center;color:#315c80;font-size:17px}
+.kpi-amber .kpi-icon{background:#fff5e5;color:#a66a12}.kpi-green .kpi-icon{background:#e8f6ef;color:#208052}.kpi-violet .kpi-icon{background:#f1edfa;color:#7259a8}
+.kpi-value{font-size:31px;line-height:1.15;font-weight:800;color:#1a3550;margin:12px 0 6px;font-variant-numeric:tabular-nums}
+.kpi-value small{font-size:12px;color:#7a8999;font-weight:600;margin-left:4px}.kpi-foot{font-size:11px;color:#8290a0}
+.dash-main-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(290px,1fr);gap:14px;margin-bottom:14px}
+.dash-panel{background:#fff;border:1px solid #e2e9f0;border-radius:13px;padding:18px 19px;margin-bottom:14px;box-shadow:0 3px 14px #173b6009;min-width:0}
+.dash-panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px}
+.dash-panel-head h3{font-size:16px;color:#203c57;margin:4px 0}.dash-panel-head p{font-size:11px;color:#8290a0;margin:0}
+.count-chip{font-size:9px;font-weight:800;letter-spacing:.8px;color:#a36312;background:#fff4e2;padding:7px 9px;border-radius:20px;white-space:nowrap}.count-chip.neutral{color:#657a8f;background:#edf2f6}
+.dash-table{min-width:610px;width:100%;border-collapse:separate;border-spacing:0;font-size:11px}
+.dash-table th{font-size:9px;letter-spacing:.7px;color:#7b8c9e;background:#f5f8fb;padding:11px 10px;border-bottom:1px solid #e6edf3}
+.dash-table td{padding:12px 10px;border-bottom:1px solid #edf1f5;color:#42566b}.dash-table tbody tr:last-child td{border-bottom:0}
+.dash-table td:first-child{font-weight:700;color:#203c57}.dash-table .status-open{color:#b36e16;font-weight:800}
+.gate-cards{display:grid;gap:12px}.gate-card{padding:13px;background:#f7f9fc;border:1px solid #e9eef3;border-radius:10px}
+.gate-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}.gate-card-head strong{font-size:13px;color:#27445f}.gate-card-head span{font-size:10px;color:#7a8998}
+.gate-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gate-metric strong{font-size:19px;color:#203c57;display:block}.gate-metric span{font-size:9px;color:#8391a0;text-transform:uppercase;letter-spacing:.8px}
+.gate-bars{height:7px;display:flex;background:#e8edf2;border-radius:10px;overflow:hidden;margin-top:12px}.gate-bars .out{background:#3e78aa}.gate-bars .in{background:#2b9b70}
+.gate-legend,.trend-legend{display:flex;gap:15px;align-items:center;color:#7b8998;font-size:10px}.gate-legend{margin-top:13px}
+.gate-legend i,.trend-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}.legend-out{background:#3e78aa}.legend-in{background:#2b9b70}
+.trend-panel{padding-bottom:14px}.trend-chart{height:190px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px;align-items:end;padding:8px 6px 0}
+.trend-day{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+.trend-values{font-size:9px;color:#78899a;white-space:nowrap}.trend-bars{height:125px;width:100%;max-width:44px;display:flex;align-items:flex-end;justify-content:center;gap:4px;border-bottom:1px solid #dce5ed;padding-bottom:1px}
+.trend-bar{width:12px;min-height:2px;border-radius:4px 4px 0 0}.trend-bar.out{background:#3e78aa}.trend-bar.in{background:#2b9b70}
+.trend-label{font-size:10px;color:#73869a;white-space:nowrap}.trend-empty{color:#8795a4;font-size:12px;text-align:center;padding:50px 0}
+.recent-panel{margin-bottom:0}
+@media(max-width:1050px){.kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.dash-main-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-card{padding:13px}.kpi-value{font-size:26px}.dash-hero{padding:20px}.dash-hero h2{font-size:21px}.hero-actions{width:100%}.trend-chart{gap:5px}.trend-bars{gap:2px}.trend-bar{width:9px}.dash-panel{padding:14px}}
+
 @media(max-width:600px){header{padding:14px}.wrap{margin:12px auto}.panel{padding:13px}.tab{flex:1}}
 </style></head>
 <body>
@@ -53,19 +94,36 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <button class="tab" onclick="logout()">Sign out</button>
 </div>
 <section id="dashboard" class="tabbody">
-<div class="management-head"><div><h2>Management Overview</h2><p class="muted" id="dashboardDate">Daily fleet movement and turnaround position</p></div><div><button onclick="refreshAll()">Refresh</button> <button class="secondary" onclick="downloadExcel()">Export Excel</button></div></div>
-<div class="grid management-kpis">
-<div class="stat"><span>Registered Fleet</span><b id="sRegistered">0</b><small>Trucks in master</small></div>
-<div class="stat"><span>Open Trips / Outside</span><b id="sOpen">0</b><small>Awaiting return IN scan</small></div>
-<div class="stat"><span>OUT Scans Today</span><b id="sOutToday">0</b><small>Truck departures</small></div>
-<div class="stat"><span>IN Scans Today</span><b id="sInToday">0</b><small>Truck returns</small></div>
-<div class="stat"><span>Average TAT Today</span><b id="sTat">0</b><small>Minutes · completed trips</small></div>
+<div class="dash-hero">
+  <div><div class="eyebrow">PVUNL · FLEET OPERATIONS</div><h2>Truck Movement Control Centre</h2><p id="dashboardDate">Daily operational overview and turnaround monitoring</p></div>
+  <div class="hero-actions"><span class="live-indicator"><i></i> Live dashboard</span><button class="hero-refresh" onclick="refreshAll()">↻ Refresh</button><button class="hero-export" onclick="downloadExcel()">↓ Export Excel</button></div>
 </div>
-<div class="management-grid">
-<div class="panel"><div class="panel-heading"><h2>Open Trips – Follow-up Required</h2><span class="muted">Oldest OUT scans first</span></div><div class="tablewrap"><table><thead><tr><th>Truck</th><th>Agency</th><th>OUT Time</th><th>Gate</th><th>Elapsed (min)</th></tr></thead><tbody id="openRows"></tbody></table></div></div>
-<div class="panel"><div class="panel-heading"><h2>Today’s Gate Performance</h2><span class="muted">OUT / IN scans</span></div><div class="tablewrap"><table><thead><tr><th>Gate</th><th>OUT</th><th>IN</th><th>Total</th></tr></thead><tbody id="gateRows"></tbody></table></div></div>
+<div class="kpi-grid">
+  <div class="kpi-card kpi-blue"><div class="kpi-top"><span>REGISTERED FLEET</span><span class="kpi-icon">▣</span></div><div class="kpi-value" id="sRegistered">0</div><div class="kpi-foot">Total trucks in master</div></div>
+  <div class="kpi-card kpi-amber"><div class="kpi-top"><span>OPEN TRIPS</span><span class="kpi-icon">↗</span></div><div class="kpi-value" id="sOpen">0</div><div class="kpi-foot">Awaiting return IN scan</div></div>
+  <div class="kpi-card kpi-slate"><div class="kpi-top"><span>OUT TODAY</span><span class="kpi-icon">⇧</span></div><div class="kpi-value" id="sOutToday">0</div><div class="kpi-foot">Truck departures recorded</div></div>
+  <div class="kpi-card kpi-green"><div class="kpi-top"><span>IN TODAY</span><span class="kpi-icon">⇩</span></div><div class="kpi-value" id="sInToday">0</div><div class="kpi-foot">Truck returns recorded</div></div>
+  <div class="kpi-card kpi-violet"><div class="kpi-top"><span>AVERAGE TAT TODAY</span><span class="kpi-icon">◷</span></div><div class="kpi-value"><span id="sTat">0</span><small>min</small></div><div class="kpi-foot">Completed trips only</div></div>
 </div>
-<div class="panel"><div class="panel-heading"><h2>Recent Movement Register</h2><span class="muted">Latest 30 records</span></div><div class="tablewrap"><table><thead><tr><th>Truck</th><th>Agency</th><th>OUT</th><th>IN</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
+<div class="dash-main-grid">
+  <div class="dash-panel open-panel">
+    <div class="dash-panel-head"><div><div class="eyebrow dark">ACTION REQUIRED</div><h3>Open Trips</h3><p>Trucks currently outside · oldest departure first</p></div><span class="count-chip" id="openCount">0 OPEN</span></div>
+    <div class="tablewrap"><table class="dash-table"><thead><tr><th>TRUCK</th><th>AGENCY</th><th>OUT TIME</th><th>GATE</th><th>ELAPSED</th></tr></thead><tbody id="openRows"></tbody></table></div>
+  </div>
+  <div class="dash-panel gate-panel">
+    <div class="dash-panel-head"><div><div class="eyebrow dark">GATE OPERATIONS</div><h3>Gate Performance</h3><p>Today's scan activity</p></div></div>
+    <div id="gateCards" class="gate-cards"></div>
+    <div class="gate-legend"><span><i class="legend-out"></i> OUT scans</span><span><i class="legend-in"></i> IN scans</span></div>
+  </div>
+</div>
+<div class="dash-panel trend-panel">
+  <div class="dash-panel-head"><div><div class="eyebrow dark">MOVEMENT ANALYTICS</div><h3>7-Day Movement Trend</h3><p>Daily truck departures and returns</p></div><div class="trend-legend"><span><i class="legend-out"></i> OUT</span><span><i class="legend-in"></i> IN</span></div></div>
+  <div id="trendChart" class="trend-chart"></div>
+</div>
+<div class="dash-panel recent-panel">
+  <div class="dash-panel-head"><div><div class="eyebrow dark">LIVE ACTIVITY</div><h3>Recent Movement Register</h3><p>Latest recorded truck movements</p></div><span class="count-chip neutral">LATEST 30</span></div>
+  <div class="tablewrap"><table class="dash-table"><thead><tr><th>TRUCK</th><th>AGENCY</th><th>OUT</th><th>IN</th><th>TAT (MIN)</th><th>STATUS</th></tr></thead><tbody id="recentRows"></tbody></table></div>
+</div>
 </section>
 <section id="settings" class="tabbody hidden">
 <div class="panel" style="margin-top:14px"><h2>Gate Operator Password</h2>
@@ -145,16 +203,19 @@ async function refreshAll(){
   if(userRole!=='admin')return;
   try{
     const d=await api('/api/dashboard');
-    byId('dashboardDate').textContent='Management snapshot · '+new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+    byId('dashboardDate').textContent='Operational snapshot · '+new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
     byId('sRegistered').textContent=d.registered_trucks;
     byId('sOpen').textContent=d.open_trips;
     byId('sOutToday').textContent=d.out_today;
     byId('sInToday').textContent=d.returned_today;
     byId('sTat').textContent=d.avg_tat_today;
-    byId('openRows').innerHTML=d.open_truck_rows.map(r=>`<tr><td><b>${escapeHtml(r.Truck_Number)}</b></td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.OUT_Date)} ${escapeHtml(r.OUT_Time)}</td><td>${escapeHtml(r.OUT_Gate)}</td><td class="status-open">${r.Age_Minutes===null?'-':escapeHtml(r.Age_Minutes)}</td></tr>`).join('')||'<tr><td colspan="5">No trucks currently awaiting return</td></tr>';
-    byId('gateRows').innerHTML=d.gate_summary.map(r=>`<tr><td><b>${escapeHtml(r.gate)}</b></td><td>${r.out}</td><td>${r.in}</td><td>${r.out+r.in}</td></tr>`).join('');
-    byId('trendRows').innerHTML=d.daily_trend.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${r.out}</td><td>${r.in}</td><td>${r.out-r.in}</td></tr>`).join('');
-    byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Exit_Date)} ${escapeHtml(r.Exit_Time)}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${r.Status==='OUTSIDE'?'<span class="status-open">OPEN / OUTSIDE</span>':'INSIDE'}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
+    byId('openCount').textContent=d.open_trips+' OPEN';
+    byId('openRows').innerHTML=d.open_truck_rows.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency||'-')}</td><td>${escapeHtml(r.OUT_Time)}</td><td>${escapeHtml(r.OUT_Gate)}</td><td class="status-open">${r.Age_Minutes===null?'-':escapeHtml(r.Age_Minutes)+' min'}</td></tr>`).join('')||'<tr><td colspan="5">No trucks currently awaiting return</td></tr>';
+    const maxGate=Math.max(1,...d.gate_summary.map(g=>g.out+g.in));
+    byId('gateCards').innerHTML=d.gate_summary.map(g=>{const total=g.out+g.in;const outWidth=total?g.out/total*100:0;const inWidth=total?g.in/total*100:0;return `<div class="gate-card"><div class="gate-card-head"><strong>${escapeHtml(g.gate)}</strong><span>${total} total scans</span></div><div class="gate-metrics"><div class="gate-metric"><strong>${g.out}</strong><span>OUT scans</span></div><div class="gate-metric"><strong>${g.in}</strong><span>IN scans</span></div></div><div class="gate-bars"><span class="out" style="width:${outWidth}%"></span><span class="in" style="width:${inWidth}%"></span></div></div>`}).join('');
+    const maxTrend=Math.max(1,...d.daily_trend.flatMap(x=>[x.out,x.in]));
+    byId('trendChart').innerHTML=d.daily_trend.map(r=>{const outH=r.out?Math.max(3,r.out/maxTrend*116):2;const inH=r.in?Math.max(3,r.in/maxTrend*116):2;const day=new Date(r.date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short'});return `<div class="trend-day"><div class="trend-values">${r.out} / ${r.in}</div><div class="trend-bars"><span class="trend-bar out" style="height:${outH}px" title="OUT: ${r.out}"></span><span class="trend-bar in" style="height:${inH}px" title="IN: ${r.in}"></span></div><div class="trend-label">${day}</div></div>`}).join('')||'<div class="trend-empty">No movement data available</div>';
+    byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency||'-')}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${r.Status==='OUTSIDE'?'<span class="status-open">OPEN / OUTSIDE</span>':'INSIDE'}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
     byId('recordRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Exit_Gate||'-')}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.Entry_Gate||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td><td><button class="danger" onclick="deleteMovement('${encodeURIComponent(r.Movement_ID)}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="9">No movement records</td></tr>';
     const tr=await api('/api/trucks');
     byId('truckRows').innerHTML=tr.trucks.map(t=>`<tr><td>${escapeHtml(t.Truck_Number)}</td><td>${escapeHtml(t.Agency)}</td><td>${escapeHtml(t.Truck_ID)}</td><td><button onclick="showQR('${encodeURIComponent(t.Truck_ID)}','${encodeURIComponent(t.Truck_Number)}')">View / Print QR</button></td></tr>`).join('')||'<tr><td colspan="4">No trucks registered</td></tr>';
