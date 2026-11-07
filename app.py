@@ -351,6 +351,21 @@ def trucks_api():
         save_db(wb)
     return jsonify({"message": "Truck registered", "truck_id": truck_id})
 
+@app.get("/api/truck-lookup/<truck_id>")
+def truck_lookup_api(truck_id):
+    """Return minimal truck details for an authenticated QR deep link."""
+    if not authorized():
+        return auth_error()
+    with LOCK:
+        wb = load_db()
+        trucks = rows_as_dict(wb["Trucks"])
+        truck = next((t for t in trucks if str(t.get("Truck_ID", "")) == truck_id), None)
+    if not truck:
+        return jsonify({"error": "Truck ID not found. Please contact the administrator."}), 404
+    return jsonify({"truck_id": truck_id, "truck_number": truck.get("Truck_Number") or "",
+                    "agency": truck.get("Agency") or ""})
+
+
 @app.post("/api/scan")
 def scan_api():
     if not authorized():
