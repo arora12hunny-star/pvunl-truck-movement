@@ -1,0 +1,42 @@
+PVUNL TRUCK MOVEMENT — GITHUB + RENDER DEPLOYMENT
+
+A. UPLOAD THESE FILES TO YOUR PUBLIC GITHUB REPOSITORY
+1. Open https://github.com/arora12hunny-star/pvunl-truck-movement
+2. Click Add file > Upload files.
+3. Extract this ZIP on your laptop.
+4. Upload the files inside the extracted folder (including Procfile and .gitignore).
+5. Commit changes to the main branch.
+6. Do NOT upload any .xlsx database, real truck data, passwords, or access codes.
+
+B. CONNECT TO RENDER
+1. Open https://dashboard.render.com/
+2. Sign in / create an account.
+3. Select New > Web Service.
+4. Connect GitHub and select arora12hunny-star/pvunl-truck-movement.
+5. Runtime: Python 3
+6. Build command: pip install -r requirements.txt
+7. Start command: gunicorn app:app --workers 1 --threads 4 --timeout 120
+8. Select a paid web service plan if you want to attach a persistent disk for this Excel-based prototype.
+9. In Advanced > Environment Variables, add:
+   PVUNL_ADMIN_CODE = choose-a-long-unique-admin-secret
+   PVUNL_OPERATOR_CODE = choose-a-long-unique-operator-secret
+   PVUNL_DATA_DIR = /var/data
+10. Add a persistent disk:
+    Mount path: /var/data
+    Size: choose the smallest suitable size offered.
+11. Create Web Service and wait for deployment to finish.
+
+C. TEST
+1. Open the HTTPS onrender.com URL shown by Render.
+2. Sign in with the admin/operator codes you configured.
+3. Register a test truck; scan its QR from a phone.
+4. Verify IN and OUT records, dashboard, and Excel export.
+5. Test with two phones before any real use.
+
+IMPORTANT LIMITATIONS / SECURITY
+- This version continues to use one Excel workbook as its data store. The persistent disk is required to retain it across restarts and deployments.
+- The disk-backed service is single-instance; keep one Gunicorn worker as specified. This is a pilot arrangement, not a robust multi-user production database.
+- For sustained multi-gate concurrent use, migrate the backend to PostgreSQL with proper user accounts, role-based access, audit logging and backups.
+- Public GitHub means source code is visible to everyone. Do not upload actual truck data, workbook files, access codes, secrets, or confidential PVUNL information.
+- The default demo codes are present only as local fallback values. Set BOTH Render environment variables above before opening the public service.
+- Obtain PVUNL/NTPC IT approval before putting official data or a public internet endpoint into operation.

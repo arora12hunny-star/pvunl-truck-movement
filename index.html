@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PVUNL | QR Truck Movement</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--navy:#173b60;--blue:#245b8f;--bg:#f3f6fa;--line:#dce4ed;--green:#16834a;--red:#b53b35}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px Arial,sans-serif;color:#1c2a38}
+header{background:var(--navy);color:white;padding:17px 22px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+header strong{font-size:19px}header small{opacity:.8}.wrap{max-width:1200px;margin:20px auto;padding:0 14px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}.tab,button{border:0;border-radius:8px;padding:11px 15px;background:var(--blue);color:white;font-weight:600;cursor:pointer}.tab{background:#dfe8f1;color:#183b5b}.tab.active{background:var(--blue);color:white}
+.panel{background:white;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:15px;box-shadow:0 2px 8px #193b6010}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{padding:16px;border:1px solid var(--line);border-radius:10px}.stat span{display:block;color:#657587;font-size:13px}.stat b{display:block;font-size:28px;margin-top:8px;color:var(--navy)}
+label{display:block;font-weight:600;font-size:13px;margin:10px 0 5px}input,select{width:100%;padding:11px;border:1px solid #cbd6e2;border-radius:7px;font-size:15px;background:white}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.primary{margin-top:12px}.secondary{background:#5c6d7e}.danger{background:var(--red)}.success{background:var(--green)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}th{background:#eef3f8;color:#294763}
+.tablewrap{overflow:auto}.muted{color:#68798a;font-size:13px}.hidden{display:none!important}.notice{padding:11px;border-radius:8px;margin:10px 0;background:#edf4fb}.notice.error{background:#fff0ef;color:#9a2822}.notice.ok{background:#eaf7ee;color:#17683b}
+#reader{max-width:430px;margin:12px auto}.qrbox{display:flex;align-items:center;gap:20px;flex-wrap:wrap}.qr{padding:12px;border:1px solid var(--line);border-radius:8px;min-width:150px;min-height:150px;display:flex;align-items:center;justify-content:center}
+h2{margin:0 0 12px;font-size:19px;color:var(--navy)}h3{color:var(--navy)}.pill{padding:4px 8px;border-radius:20px;background:#e8f5ec;color:#17683b;font-weight:bold}
+@media(max-width:600px){header{padding:14px}.wrap{margin:12px auto}.panel{padding:13px}.tab{flex:1}}
+</style></head>
+<body>
+<header><div><strong>PVUNL | Truck Movement Management</strong><br><small>QR-based Gate Entry & Exit Monitoring | Android + iPhone</small></div><div id="sessionLabel">Not signed in</div></header>
+<div class="wrap">
+<div id="login" class="panel">
+<h2>Application Access</h2><p class="muted">Sign in using your assigned operator or administrator access code.</p>
+<label>Access code</label><input id="accessCode" type="password" placeholder="Enter access code" onkeydown="if(event.key==='Enter')login()">
+<button class="primary" onclick="login()">Sign in</button><div id="loginMsg"></div>
+</div>
+<div id="app" class="hidden">
+<div id="adminTabs" class="tabs">
+<button class="tab active" data-tab="dashboard" onclick="showTab('dashboard')">Dashboard</button>
+<button class="tab" data-tab="scan" onclick="showTab('scan')">Gate Scanning</button>
+<button class="tab" data-tab="register" onclick="showTab('register')">Truck Registration</button>
+<button class="tab" data-tab="records" onclick="showTab('records')">Movement Records</button>
+<button class="tab" onclick="logout()">Sign out</button>
+</div>
+<div id="operatorTabs" class="tabs hidden">
+<button class="tab active" data-tab="scan" onclick="showTab('scan')">Gate Scanning</button>
+<button class="tab" onclick="logout()">Sign out</button>
+</div>
+<section id="dashboard" class="tabbody">
+<div class="grid">
+<div class="stat"><span>Registered Trucks</span><b id="sRegistered">0</b></div>
+<div class="stat"><span>Currently Inside</span><b id="sInside">0</b></div>
+<div class="stat"><span>Exited Today</span><b id="sExited">0</b></div>
+<div class="stat"><span>Average TAT (minutes)</span><b id="sTat">0</b></div>
+</div>
+<div class="panel" style="margin-top:14px"><h2>Trucks Currently Inside Plant</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry Time</th><th>Gate</th><th>Status</th></tr></thead><tbody id="insideRows"></tbody></table></div></div>
+<div class="panel"><h2>Recent Movement</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry</th><th>Exit</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
+<button onclick="refreshAll()">Refresh dashboard</button> <button class="secondary" onclick="downloadExcel()">Download Excel database</button>
+</section>
+<section id="scan" class="tabbody hidden">
+<div class="panel"><h2>Gate QR Scanning</h2><div class="row">
+<div><label>Gate</label><select id="gate"><option>Main Gate</option><option>Gate 1</option><option>Gate 2</option><option>Other</option></select></div>
+<div><label>Movement action</label><select id="action"><option value="entry">IN – Truck Entry</option><option value="exit">OUT – Truck Exit</option></select></div>
+</div>
+<p class="muted">Works in Android Chrome and iPhone Safari. Select IN/OUT, allow camera access, and scan the truck QR. For iPhone and remote access, open this application using its HTTPS address.</p>
+<button class="success" onclick="startScanner()">Start camera scanner</button> <button class="secondary" onclick="stopScanner()">Stop camera</button><p class="muted">Use the rear camera. If camera permission is denied or unavailable, use Manual QR ID entry below.</p>
+<div id="reader"></div><div id="scanMsg"></div>
+<hr><h3>Manual QR ID entry (backup)</h3><div class="row"><input id="manualTruckId" placeholder="Enter / paste Truck ID"><button onclick="manualScan()">Record movement</button></div>
+</div></section>
+<section id="register" class="tabbody hidden">
+<div class="panel"><h2>Register New Truck</h2><div class="row">
+<div><label>Truck registration number *</label><input id="truckNumber" placeholder="e.g. JH01AB1234"></div>
+<div><label>Agency name</label><input id="agency" placeholder="Transport agency"></div>
+<div><label>Truck type</label><input id="truckType" placeholder="Tipper / Trailer / Other"></div>
+<div><label>Driver name</label><input id="driverName"></div>
+<div><label>Driver mobile</label><input id="driverMobile" inputmode="numeric"></div>
+</div><button class="primary" onclick="registerTruck()">Register truck & generate QR</button><div id="registerMsg"></div></div>
+<div class="panel"><h2>Truck Master & QR Codes</h2><div class="tablewrap"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Truck ID</th><th>QR Code</th></tr></thead><tbody id="truckRows"></tbody></table></div></div>
+</section>
+<section id="records" class="tabbody hidden">
+<div class="panel"><h2>Movement Register</h2><p class="muted">Latest 30 records are shown here. Download the complete Excel workbook for historical records.</p><button class="secondary" onclick="downloadExcel()">Download Excel database</button><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Truck No.</th><th>Agency</th><th>Entry Date/Time</th><th>Entry Gate</th><th>Exit Date/Time</th><th>Exit Gate</th><th>TAT (min)</th><th>Status</th></tr></thead><tbody id="recordRows"></tbody></table></div></div>
+</section>
+</div></div>
+<script>
+let code=sessionStorage.getItem('pvunl_code')||'', userRole=sessionStorage.getItem('pvunl_role')||'', scanner=null;
+const byId = id => document.getElementById(id);
+async function api(path,opts={}){
+  opts.headers={...(opts.headers||{}),'Content-Type':'application/json','X-Access-Code':code};
+  opts.cache='no-store';
+  let r;
+  try{r=await fetch(path,opts)}catch(e){throw Error('Cannot reach '+path+'. Check that the PVUNL Python server is still running. '+e.message)}
+  let j;
+  try{j=await r.json()}catch(e){throw Error('Invalid server response from '+path+' (HTTP '+r.status+').')}
+  if(!r.ok)throw Error(j.error||('Request failed: HTTP '+r.status));
+  return j;
+}
+function msg(id,text,error=false){byId(id).innerHTML='<div class="notice '+(error?'error':'ok')+'">'+escapeHtml(text)+'</div>'}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function login(){
+  code=byId('accessCode').value.trim();
+  try{
+    let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({access_code:code})});
+    let d=await r.json(); if(!r.ok)throw Error(d.error||'Sign-in failed');
+    userRole=d.role;
+    sessionStorage.setItem('pvunl_code',code);sessionStorage.setItem('pvunl_role',userRole);
+    byId('login').classList.add('hidden');byId('app').classList.remove('hidden');
+    byId('sessionLabel').textContent=userRole==='admin'?'Administrator':'Gate Operator';
+    byId('adminTabs').classList.toggle('hidden',userRole!=='admin');
+    byId('operatorTabs').classList.toggle('hidden',userRole!=='operator');
+    if(userRole==='admin'){showTab('dashboard',true);await refreshAll();}
+    else{showTab('scan');}
+  }catch(e){msg('loginMsg',e.message,true)}
+}
+function logout(){
+  stopScanner();sessionStorage.removeItem('pvunl_code');sessionStorage.removeItem('pvunl_role');
+  code='';userRole='';byId('app').classList.add('hidden');byId('login').classList.remove('hidden');
+  byId('accessCode').value='';byId('sessionLabel').textContent='Not signed in';
+  byId('adminTabs').classList.add('hidden');byId('operatorTabs').classList.add('hidden');
+}
+function showTab(t, skipRefresh=false){
+  if(userRole!=='admin'&&t!=='scan')return;
+  document.querySelectorAll('.tabbody').forEach(x=>x.classList.add('hidden'));
+  byId(t).classList.remove('hidden');
+  document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  if(!skipRefresh && userRole==='admin'&&(t==='dashboard'||t==='records'||t==='register'))refreshAll();
+}
+async function refreshAll(){
+  if(userRole!=='admin')return;
+  try{
+    let d=await api('/api/dashboard');
+    byId('sRegistered').textContent=d.registered_trucks;byId('sInside').textContent=d.inside;
+    byId('sExited').textContent=d.exited_today;byId('sTat').textContent=d.avg_tat_minutes;
+    byId('insideRows').innerHTML=d.inside_trucks.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Entry_Gate)}</td><td><span class="pill">INSIDE</span></td></tr>`).join('')||'<tr><td colspan="5">No trucks currently inside</td></tr>';
+    byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Exit_Time||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
+    byId('recordRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Entry_Date)} ${escapeHtml(r.Entry_Time)}</td><td>${escapeHtml(r.Entry_Gate)}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Exit_Gate||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td></tr>`).join('');
+    let tr=await api('/api/trucks');
+    byId('truckRows').innerHTML=tr.trucks.map(t=>`<tr><td>${escapeHtml(t.Truck_Number)}</td><td>${escapeHtml(t.Agency)}</td><td>${escapeHtml(t.Truck_ID)}</td><td><button onclick="showQR('${encodeURIComponent(t.Truck_ID)}','${encodeURIComponent(t.Truck_Number)}')">View / Print QR</button></td></tr>`).join('')||'<tr><td colspan="4">No trucks registered</td></tr>';
+  }catch(e){if(e.message.toLowerCase().includes('access'))logout();else console.error(e)}
+}
+async function registerTruck(){
+  if(userRole!=='admin')return;
+  try{
+    let d=await api('/api/trucks',{method:'POST',body:JSON.stringify({truck_number:byId('truckNumber').value,agency:byId('agency').value,truck_type:byId('truckType').value,driver_name:byId('driverName').value,driver_mobile:byId('driverMobile').value})});
+    let truckNo=byId('truckNumber').value;msg('registerMsg','Truck registered. Truck ID: '+d.truck_id);
+    byId('truckNumber').value='';await refreshAll();showQR(encodeURIComponent(d.truck_id),encodeURIComponent(truckNo));
+  }catch(e){msg('registerMsg',e.message,true)}
+}
+function showQR(id,num){
+  if(userRole!=='admin')return;
+  let truckId=decodeURIComponent(id),truckNo=decodeURIComponent(num),w=window.open('','_blank','width=360,height=460');
+  w.document.write(`<html><head><title>PVUNL Truck QR</title></head><body style="font-family:Arial;text-align:center;padding:20px"><h3>PVUNL Truck QR</h3><div id="q" style="display:inline-block"></div><p><b>${escapeHtml(truckNo)}</b></p><p>${escapeHtml(truckId)}</p><small>PVUNL Truck Movement System</small><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script><script>new QRCode(document.getElementById('q'),{text:${JSON.stringify(truckId)},width:220,height:220});setTimeout(()=>window.print(),500)<\/script></body></html>`);
+  w.document.close();
+}
+async function startScanner(){
+  if(!window.Html5Qrcode){msg('scanMsg','QR scanner library could not load. Check internet connectivity.',true);return}
+  try{
+    if(!scanner)scanner=new Html5Qrcode('reader');
+    await scanner.start({facingMode:'environment'},{fps:12,qrbox:(vw,vh)=>{const s=Math.floor(Math.min(vw,vh)*0.72);return {width:s,height:s}},aspectRatio:1.0},async decoded=>{await stopScanner();await submitScan(decoded)},e=>{});
+    msg('scanMsg','Camera started. Point it at the truck QR code.');
+  }catch(e){msg('scanMsg','Unable to start camera: '+e+'. Use HTTPS and allow camera permission.',true)}
+}
+async function stopScanner(){if(scanner){try{if(scanner.isScanning)await scanner.stop()}catch(e){}}}
+async function submitScan(raw){
+  let truckId=String(raw).trim();if(truckId.startsWith('PVUNL:'))truckId=truckId.slice(6);
+  try{
+    let d=await api('/api/scan',{method:'POST',body:JSON.stringify({truck_id:truckId,action:byId('action').value,gate:byId('gate').value})});
+    msg('scanMsg',d.message+(d.tat_minutes!==undefined?' | TAT: '+d.tat_minutes+' minutes':''));
+    byId('manualTruckId').value='';
+    if(userRole==='admin')await refreshAll();
+  }catch(e){msg('scanMsg',e.message,true)}
+}
+function manualScan(){submitScan(byId('manualTruckId').value)}
+function downloadExcel(){
+  if(userRole!=='admin')return;
+  fetch('/api/export',{headers:{'X-Access-Code':code}}).then(async r=>{if(!r.ok){let j=await r.json();throw Error(j.error||'Export failed')}return r.blob()})
+  .then(b=>{let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='PVUNL_Truck_Movement.xlsx';a.click();URL.revokeObjectURL(a.href)})
+  .catch(e=>alert(e.message));
+}
+if(code&&userRole){byId('accessCode').value=code;login()}
+</script></body></html>

@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+PVUNL_Truck_Movement.xlsx
+*.log
