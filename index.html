@@ -47,6 +47,12 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 .tat-empty{grid-column:1/-1;text-align:center;color:#7b8998;padding:65px 10px}
 @media(max-width:600px){.tat-trend-chart{gap:4px}.tat-day-bars{gap:3px;height:120px}.tat-bar{width:35%}.tat-day-values{font-size:9px}.tat-day-label{font-size:10px}}
 
+.perf-filters{display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:10px;margin:14px 0}
+.perf-summary{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0 14px}
+.perf-summary span{background:#edf3f8;border:1px solid #dce5ee;border-radius:8px;padding:8px 11px;font-size:12px;color:#496078}
+.perf-table{min-width:1050px}.perf-status{display:inline-block;padding:5px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.perf-status.inside{background:#e7f4ec;color:#17683b}.perf-status.outside{background:#fff1e5;color:#9a4b12}
+@media(max-width:700px){.perf-filters{grid-template-columns:1fr}}
 /* Management dashboard visual system */
 #dashboard{color:#1b2d42}
 .dash-hero{background:linear-gradient(115deg,#102f50 0%,#1d527e 65%,#286b92 100%);color:#fff;border-radius:16px;padding:25px 27px;margin:2px 0 17px;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:0 10px 28px #173b6022}
@@ -103,6 +109,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <button class="tab" data-tab="scan" onclick="showTab('scan')">Gate Scanning</button>
 <button class="tab" data-tab="register" onclick="showTab('register')">Truck Registration</button>
 <button class="tab" data-tab="records" onclick="showTab('records')">Movement Records</button>
+<button class="tab" data-tab="performance" onclick="showTab('performance')">Truck Performance</button>
 <button class="tab" data-tab="settings" onclick="showTab('settings')">Settings</button>
 <button class="tab" onclick="logout()">Sign out</button>
 </div>
@@ -148,6 +155,14 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
   <div class="tablewrap"><table class="dash-table"><thead><tr><th>TRUCK</th><th>AGENCY</th><th>OUT</th><th>IN</th><th>TAT (MIN)</th><th>STATUS</th></tr></thead><tbody id="recentRows"></tbody></table></div>
 </div>
 </section>
+<section id="performance" class="tabbody hidden">
+<div class="dash-panel" style="margin-top:14px">
+<div class="dash-panel-head"><div><div class="eyebrow dark">FLEET INTELLIGENCE</div><h3>Individual Truck Performance</h3><p>Lifetime performance based on recorded IN/OUT movements</p></div><button class="hero-refresh" onclick="refreshAll()">↻ Refresh</button></div>
+<div class="perf-filters"><input id="truckPerfSearch" placeholder="Search truck registration number..." oninput="renderTruckPerformance()"><input id="truckPerfAgency" placeholder="Filter by agency..." oninput="renderTruckPerformance()"><select id="truckPerfStatus" onchange="renderTruckPerformance()"><option value="">All current statuses</option><option value="INSIDE PLANT">Inside Plant</option><option value="OUTSIDE PLANT">Outside Plant</option></select></div>
+<div class="perf-summary" id="truckPerfSummary"></div>
+<div class="tablewrap"><table class="dash-table perf-table"><thead><tr><th>TRUCK NO.</th><th>AGENCY</th><th>COMPLETED TRIPS</th><th>AVG. INSIDE TAT (MIN)</th><th>AVG. OUTSIDE TAT (MIN)</th><th>LONGEST OUTSIDE TAT (MIN)</th><th>CURRENT STATUS</th><th>OUTSTANDING SINCE</th></tr></thead><tbody id="truckPerfRows"></tbody></table></div>
+<p class="tat-note">Inside Plant TAT = previous IN to next OUT. Outside Plant TAT = OUT to corresponding IN. Averages include completed cycles only; open trips are excluded from averages. Metrics cover all available movement history.</p>
+</div></section>
 <section id="settings" class="tabbody hidden">
 <div class="panel" style="margin-top:14px"><h2>Gate Operator Password</h2>
 <p class="muted">Default operator password: PVUNL2028. Administrator can change it here. The new password applies to all Gate Operator logins.</p>
@@ -220,7 +235,7 @@ function showTab(t, skipRefresh=false){
   document.querySelectorAll('.tabbody').forEach(x=>x.classList.add('hidden'));
   byId(t).classList.remove('hidden');
   document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
-  if(!skipRefresh && userRole==='admin'&&(t==='dashboard'||t==='records'||t==='register'))refreshAll();
+  if(!skipRefresh && userRole==='admin'&&(t==='dashboard'||t==='records'||t==='register'||t==='performance'))refreshAll();
 }
 async function refreshAll(){
   if(userRole!=='admin')return;
@@ -251,12 +266,25 @@ async function refreshAll(){
       return `<div class="tat-day"><div class="tat-day-values">${insideLabel} / ${outsideLabel}</div><div class="tat-day-bars"><span class="tat-bar inside" style="height:${insideH}px" title="Inside Plant: ${insideLabel} min · ${r.inside_count} cycles"></span><span class="tat-bar outside" style="height:${outsideH}px" title="Outside Plant: ${outsideLabel} min · ${r.outside_count} cycles"></span></div><div class="tat-day-label">${day}</div><div class="tat-day-count">IN-OUT: ${r.inside_count}<br>OUT-IN: ${r.outside_count}</div></div>`;
     }).join(''):'<div class="tat-empty">No completed turnaround cycles in the selected period</div>';
 
+    window.truckPerformanceData=d.truck_performance||[];renderTruckPerformance();
     byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency||'-')}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${r.Status==='OUTSIDE'?'<span class="status-open">OPEN / OUTSIDE</span>':'INSIDE'}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
     byId('recordRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency)}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Exit_Gate||'-')}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.Entry_Gate||'-')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${escapeHtml(r.Status)}</td><td><button class="danger" onclick="deleteMovement('${encodeURIComponent(r.Movement_ID)}')">Delete</button></td></tr>`).join('')||'<tr><td colspan="9">No movement records</td></tr>';
     const tr=await api('/api/trucks');
     byId('truckRows').innerHTML=tr.trucks.map(t=>`<tr><td>${escapeHtml(t.Truck_Number)}</td><td>${escapeHtml(t.Agency)}</td><td>${escapeHtml(t.Truck_ID)}</td><td><button onclick="showQR('${encodeURIComponent(t.Truck_ID)}','${encodeURIComponent(t.Truck_Number)}')">View / Print QR</button></td></tr>`).join('')||'<tr><td colspan="4">No trucks registered</td></tr>';
   }catch(e){if(e.message.toLowerCase().includes('access'))logout();else console.error(e)}
 }
+function renderTruckPerformance(){
+  if(!byId('truckPerfRows'))return;
+  const all=window.truckPerformanceData||[];
+  const q=(byId('truckPerfSearch')?.value||'').trim().toLowerCase();
+  const agency=(byId('truckPerfAgency')?.value||'').trim().toLowerCase();
+  const status=byId('truckPerfStatus')?.value||'';
+  const rows=all.filter(r=>(!q||String(r.truck_number).toLowerCase().includes(q))&&(!agency||String(r.agency).toLowerCase().includes(agency))&&(!status||r.current_status===status));
+  const outside=all.filter(r=>r.current_status==='OUTSIDE PLANT').length;
+  byId('truckPerfSummary').innerHTML='<span>Registered trucks: <b>'+all.length+'</b></span><span>Currently outside: <b>'+outside+'</b></span><span>Currently inside: <b>'+(all.length-outside)+'</b></span><span>Showing: <b>'+rows.length+'</b></span>';
+  byId('truckPerfRows').innerHTML=rows.map(r=>{const state=r.current_status==='OUTSIDE PLANT'?'outside':'inside';return '<tr><td><b>'+escapeHtml(r.truck_number)+'</b></td><td>'+escapeHtml(r.agency||'-')+'</td><td>'+r.completed_trips+'</td><td>'+(r.avg_inside_minutes===null?'—':r.avg_inside_minutes)+'</td><td>'+(r.avg_outside_minutes===null?'—':r.avg_outside_minutes)+'</td><td>'+(r.longest_outside_minutes===null?'—':r.longest_outside_minutes)+'</td><td><span class="perf-status '+state+'">'+escapeHtml(r.current_status)+'</span></td><td>'+escapeHtml(r.open_since||'—')+'</td></tr>';}).join('')||'<tr><td colspan="8">No trucks match the selected filters</td></tr>';
+}
+
 async function registerTruck(){
   if(userRole!=='admin')return;
   try{
