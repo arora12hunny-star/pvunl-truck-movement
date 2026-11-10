@@ -114,6 +114,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 .dash-panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px}
 .dash-panel-head h3{font-size:16px;color:#203c57;margin:4px 0}.dash-panel-head p{font-size:11px;color:#8290a0;margin:0}
 .count-chip{font-size:9px;font-weight:800;letter-spacing:.8px;color:#a36312;background:#fff4e2;padding:7px 9px;border-radius:20px;white-space:nowrap}.count-chip.neutral{color:#657a8f;background:#edf2f6}
+.open-alerts{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 .dash-table{min-width:610px;width:100%;border-collapse:separate;border-spacing:0;font-size:11px}
 .dash-table th{font-size:9px;letter-spacing:.7px;color:#7b8c9e;background:#f5f8fb;padding:11px 10px;border-bottom:1px solid #e6edf3}
 .dash-table td{padding:12px 10px;border-bottom:1px solid #edf1f5;color:#42566b}.dash-table tbody tr:last-child td{border-bottom:0}
@@ -182,7 +183,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 </div>
 <div class="dash-main-grid">
   <div class="dash-panel open-panel">
-    <div class="dash-panel-head"><div><div class="eyebrow dark">ACTION REQUIRED</div><h3>Open Trips</h3><p>Trucks currently outside · oldest departure first</p></div><span class="count-chip" id="openCount">0 OPEN</span></div>
+    <div class="dash-panel-head"><div><div class="eyebrow dark">ACTION REQUIRED</div><h3>Open Trips</h3><p>Trucks currently outside · oldest departure first</p></div><div class="open-alerts"><span class="count-chip" id="openCount">0 OPEN</span><span class="count-chip neutral" id="openAgeAlert">AGEING: —</span></div></div>
     <div class="tablewrap"><table class="dash-table"><thead><tr><th>TRUCK</th><th>AGENCY</th><th>OUT TIME</th><th>GATE</th><th>ELAPSED</th></tr></thead><tbody id="openRows"></tbody></table></div>
   </div>
   <div class="dash-panel gate-panel">
@@ -327,7 +328,7 @@ async function refreshAll(){
   if(userRole!=='admin')return;
   try{
     const d=await api('/api/dashboard');
-    byId('dashboardDate').textContent='Operational snapshot · '+new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    byId('dashboardDate').textContent='Operational snapshot · '+new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+' · auto-refresh 60 sec';
     byId('sRegistered').textContent=d.registered_trucks;
     byId('sOpen').textContent=d.open_trips;
     byId('sOutToday').textContent=d.out_today;
@@ -336,6 +337,10 @@ async function refreshAll(){
     byId('sInside').textContent=d.inside_plant??0;
     byId('sOutsidePct').textContent=d.outside_fleet_pct??0;
     byId('openCount').textContent=d.open_trips+' OPEN';
+    const aged=(d.open_truck_rows||[]).filter(r=>Number(r.Age_Minutes||0)>=120).length;
+    byId('openAgeAlert').textContent=aged+' OVER 2 H';
+    byId('openAgeAlert').style.background=aged?'#fff0ed':'#edf2f6';
+    byId('openAgeAlert').style.color=aged?'#a53c32':'#657a8f';
     byId('openRows').innerHTML=d.open_truck_rows.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency||'-')}</td><td>${escapeHtml(r.OUT_Time)}</td><td>${escapeHtml(r.OUT_Gate)}</td><td class="status-open">${r.Age_Minutes===null?'-':escapeHtml(r.Age_Minutes)+' min'}</td></tr>`).join('')||'<tr><td colspan="5">No trucks currently awaiting return</td></tr>';
     const maxGate=Math.max(1,...d.gate_summary.map(g=>g.out+g.in));
     byId('gateCards').innerHTML=d.gate_summary.map(g=>{const total=g.out+g.in;const outWidth=total?g.out/total*100:0;const inWidth=total?g.in/total*100:0;return `<div class="gate-card"><div class="gate-card-head"><strong>${escapeHtml(g.gate)}</strong><span>${total} total scans</span></div><div class="gate-metrics"><div class="gate-metric"><strong>${g.out}</strong><span>OUT scans</span></div><div class="gate-metric"><strong>${g.in}</strong><span>IN scans</span></div></div><div class="gate-bars"><span class="out" style="width:${outWidth}%"></span><span class="in" style="width:${inWidth}%"></span></div></div>`}).join('');
@@ -585,4 +590,5 @@ if(installAppBtn){
 }
 if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches&&installAppBtn)installAppBtn.hidden=true;
 if(code&&userRole){byId('accessCode').value=code;login()}
+setInterval(()=>{if(userRole==='admin'&&byId('dashboard')&&!byId('dashboard').classList.contains('hidden'))refreshAll()},60000);
 </script></body></html>
