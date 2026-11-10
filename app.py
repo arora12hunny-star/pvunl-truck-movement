@@ -23,6 +23,24 @@ def password_hash(value):
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 def get_operator_password_hash():
+    if postgres_enabled():
+        saved_hash = get_app_setting("operator_password_hash")
+        if saved_hash:
+            return saved_hash
+        # First-use bootstrap: preserve the existing local hash if it is available.
+        if OPERATOR_CONFIG_FILE.exists():
+            try:
+                saved = json.loads(OPERATOR_CONFIG_FILE.read_text(encoding="utf-8"))
+                saved_hash = saved.get("password_hash")
+                if saved_hash:
+                    set_app_setting_if_absent("operator_password_hash", saved_hash)
+                    return get_app_setting("operator_password_hash") or saved_hash
+            except Exception:
+                app.logger.exception("Could not read existing operator password configuration")
+        initial_password = os.environ.get("PVUNL_OPERATOR_CODE", "PVUNL2028")
+        candidate = password_hash(initial_password)
+        set_app_setting_if_absent("operator_password_hash", candidate)
+        return get_app_setting("operator_password_hash") or candidate
     if OPERATOR_CONFIG_FILE.exists():
         try:
             saved = json.loads(OPERATOR_CONFIG_FILE.read_text(encoding="utf-8"))
@@ -34,12 +52,56 @@ def get_operator_password_hash():
     return password_hash(initial_password)
 
 def save_operator_password(new_password):
-    payload = {"password_hash": password_hash(new_password)}
+    new_hash = password_hash(new_password)
+    if postgres_enabled():
+        set_app_setting("operator_password_hash", new_hash)
+        return
+    payload = {"password_hash": new_hash}
     temp_file = OPERATOR_CONFIG_FILE.with_suffix(".tmp")
     temp_file.write_text(json.dumps(payload), encoding="utf-8")
     temp_file.replace(OPERATOR_CONFIG_FILE)
 
 app = Flask(__name__, static_folder=None)
+
+
+DB_BACKEND = os.environ.get("DB_BACKEND", "excel").strip().lower()
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+def postgres_enabled():
+    return DB_BACKEND == "postgres"
+
+def pg_connect():
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL is required when DB_BACKEND=postgres")
+    try:
+        import psycopg
+        return psycopg.connect(DATABASE_URL, connect_timeout=10)
+    except Exception as exc:
+        raise RuntimeError(f"Could not connect to Supabase PostgreSQL: {exc}") from exc
+
+def get_app_setting(key):
+    with pg_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT "Setting_Value" FROM public."App_Settings" WHERE "Setting_Key" = %s', (key,))
+            row = cur.fetchone()
+            return row[0] if row else None
+
+def set_app_setting_if_absent(key, value):
+    with pg_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                'INSERT INTO public."App_Settings" ("Setting_Key", "Setting_Value") VALUES (%s, %s) ON CONFLICT ("Setting_Key") DO NOTHING',
+                (key, value)
+            )
+
+def set_app_setting(key, value):
+    with pg_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                'INSERT INTO public."App_Settings" ("Setting_Key", "Setting_Value", "Updated_At") VALUES (%s, %s, NOW()) ON CONFLICT ("Setting_Key") DO UPDATE SET "Setting_Value" = EXCLUDED."Setting_Value", "Updated_At" = NOW()',
+                (key, value)
+            )
+
 
 TRUCK_HEADERS = ["Truck_ID", "Truck_Number", "Agency", "Truck_Type", "Driver_Name", "Driver_Mobile", "Registered_At"]
 MOVEMENT_HEADERS = ["Movement_ID", "Truck_ID", "Truck_Number", "Agency",
@@ -50,6 +112,24 @@ def now_local():
     return datetime.now(TZ)
 
 def ensure_database():
+    if postgres_enabled():
+        # Validate the pre-created schema. Never create, truncate, or reset production tables here.
+        required = {
+            "Trucks": set(TRUCK_HEADERS),
+            "Movements": set(MOVEMENT_HEADERS),
+            "App_Settings": {"Setting_Key", "Setting_Value", "Updated_At"}
+        }
+        with pg_connect() as conn:
+            with conn.cursor() as cur:
+                for table, expected in required.items():
+                    cur.execute(
+                        "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=%s",
+                        (table,)
+                    )
+                    actual = {row[0] for row in cur.fetchall()}
+                    if not expected.issubset(actual):
+                        raise RuntimeError(f"Supabase table {table} is missing required columns: {sorted(expected-actual)}")
+        return
     if DB_FILE.exists():
         return
     wb = Workbook()
@@ -66,12 +146,79 @@ def ensure_database():
         sheet.auto_filter.ref = sheet.dimensions
     wb.save(DB_FILE)
 
+def _sheet_rows(ws):
+    headers = [c.value for c in ws[1]]
+    return [dict(zip(headers, row)) for row in ws.iter_rows(min_row=2, values_only=True)
+            if any(v is not None for v in row)]
+
 def load_db():
     ensure_database()
-    return load_workbook(DB_FILE)
+    if not postgres_enabled():
+        return load_workbook(DB_FILE)
+    wb = Workbook()
+    default = wb.active
+    wb.remove(default)
+    snapshots = {}
+    with pg_connect() as conn:
+        with conn.cursor() as cur:
+            for table, headers, key_col in (
+                ("Trucks", TRUCK_HEADERS, "Truck_ID"),
+                ("Movements", MOVEMENT_HEADERS, "Movement_ID")
+            ):
+                ws = wb.create_sheet(table)
+                ws.append(headers)
+                cur.execute(f'SELECT {", ".join(chr(34)+h+chr(34) for h in headers)} FROM public."{table}"')
+                records = cur.fetchall()
+                for record in records:
+                    ws.append(list(record))
+                snapshots[table] = {
+                    str(row[key_col]): tuple(row.get(h) for h in headers)
+                    for row in _sheet_rows(ws) if row.get(key_col) is not None
+                }
+    wb._pvunl_pg_snapshots = snapshots
+    return wb
 
 def save_db(wb):
-    wb.save(DB_FILE)
+    if not postgres_enabled():
+        wb.save(DB_FILE)
+        return
+    snapshots = getattr(wb, "_pvunl_pg_snapshots", None)
+    if snapshots is None:
+        raise RuntimeError("Refusing to save PostgreSQL workbook without its original snapshot")
+    changes = []
+    for table, headers, key_col in (
+        ("Trucks", TRUCK_HEADERS, "Truck_ID"),
+        ("Movements", MOVEMENT_HEADERS, "Movement_ID")
+    ):
+        current_rows = _sheet_rows(wb[table])
+        current = {str(row[key_col]): tuple(row.get(h) for h in headers)
+                   for row in current_rows if row.get(key_col) is not None}
+        before = snapshots.get(table, {})
+        deleted = set(before) - set(current)
+        changed = [(row_id, values) for row_id, values in current.items() if before.get(row_id) != values]
+        changes.append((table, headers, key_col, deleted, changed))
+    # Apply only row-level differences in one transaction. No table-wide DELETE/TRUNCATE.
+    with pg_connect() as conn:
+        with conn.cursor() as cur:
+            for table, headers, key_col, deleted, changed in changes:
+                for row_id in deleted:
+                    cur.execute(f'DELETE FROM public."{table}" WHERE "{key_col}" = %s', (row_id,))
+                if changed:
+                    cols = ", ".join(f'"{h}"' for h in headers)
+                    placeholders = ", ".join(["%s"] * len(headers))
+                    updates = ", ".join(f'"{h}" = EXCLUDED."{h}"' for h in headers if h != key_col)
+                    sql = (f'INSERT INTO public."{table}" ({cols}) VALUES ({placeholders}) '
+                           f'ON CONFLICT ("{key_col}") DO UPDATE SET {updates}')
+                    for _, values in changed:
+                        # Preserve text identifiers/dates exactly; normalize TAT to numeric.
+                        normalized = list(values)
+                        if table == "Movements":
+                            idx = headers.index("TAT_Minutes")
+                            if normalized[idx] in ("", None):
+                                normalized[idx] = None
+                            else:
+                                normalized[idx] = float(normalized[idx])
+                        cur.execute(sql, normalized)
 
 def rows_as_dict(ws):
     headers = [c.value for c in ws[1]]
@@ -133,6 +280,14 @@ def pwa_app_icon():
 def health():
     try:
         ensure_database()
+        if postgres_enabled():
+            with pg_connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute('SELECT COUNT(*) FROM public."Trucks"')
+                    truck_count = cur.fetchone()[0]
+                    cur.execute('SELECT COUNT(*) FROM public."Movements"')
+                    movement_count = cur.fetchone()[0]
+            return jsonify({"ok": True, "database": "supabase-postgresql", "trucks": truck_count, "movements": movement_count})
         return jsonify({"ok": True, "database": str(DB_FILE.name)})
     except Exception as exc:
         app.logger.exception("Health check failed")
@@ -616,9 +771,10 @@ def export_api():
     if not authorized("admin"):
         return auth_error()
     with LOCK:
-        ensure_database()
-        data = BytesIO(DB_FILE.read_bytes())
-    data.seek(0)
+        wb = load_db()
+        data = BytesIO()
+        wb.save(data)
+        data.seek(0)
     return send_file(data, as_attachment=True, download_name="PVUNL_Truck_Movement.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
