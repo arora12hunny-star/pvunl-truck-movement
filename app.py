@@ -197,12 +197,31 @@ def dashboard():
         daily.append({"date": day, "out": sum(1 for m in movements if str(m.get("Exit_Date") or "") == day),
                       "in": sum(1 for m in movements if str(m.get("Entry_Date") or "") == day and m.get("Entry_Time"))})
 
-    # Calculate daily average inside/outside plant turnaround from paired scans.
-    tat_days = {}
-    for offset in range(6, -1, -1):
-        day = (current - timedelta(days=offset)).strftime("%Y-%m-%d")
-        tat_days[day] = {"date": day, "inside_sum": 0.0, "inside_count": 0,
-                         "outside_sum": 0.0, "outside_count": 0}
+    # Last 3 calendar days: daily and shift-wise inside/outside TAT and completed ash-mound trips.
+    # Shift C is attributed to the date on which the shift started (22:00-06:00).
+    report_days = [(current - timedelta(days=offset)).strftime("%Y-%m-%d") for offset in (2, 1, 0)]
+    shift_names = ("A", "B", "C")
+
+    def shift_for(stamp):
+        hour = stamp.hour
+        if 6 <= hour < 14: return "A"
+        if 14 <= hour < 22: return "B"
+        return "C"
+
+    def shift_date_for(stamp):
+        # 00:00-05:59 belongs to the previous day's night shift.
+        if stamp.hour < 6:
+            return (stamp.date() - timedelta(days=1)).strftime("%Y-%m-%d")
+        return stamp.strftime("%Y-%m-%d")
+
+    tat_buckets = {}
+    ash_daily = {day: 0 for day in report_days}
+    ash_shift = {day: {shift: 0 for shift in shift_names} for day in report_days}
+    for day in report_days:
+        tat_buckets[day] = {
+            shift: {"inside_sum": 0.0, "inside_count": 0, "outside_sum": 0.0, "outside_count": 0}
+            for shift in shift_names
+        }
 
     by_truck = {}
     for movement in movements:
@@ -221,34 +240,64 @@ def dashboard():
             out_dt = parse_movement_datetime(movement.get("Exit_Date"), movement.get("Exit_Time"))
             in_dt = parse_movement_datetime(movement.get("Entry_Date"), movement.get("Entry_Time"))
 
-            # Outside TAT: OUT to matching IN; attribute to the return (IN) date.
+            # One OUT followed by its subsequent IN is one completed trip to Main Ash Mound.
             if out_dt and in_dt and in_dt >= out_dt:
-                day = in_dt.strftime("%Y-%m-%d")
-                if day in tat_days:
-                    tat_days[day]["outside_sum"] += (in_dt - out_dt).total_seconds() / 60
-                    tat_days[day]["outside_count"] += 1
+                trip_day = shift_date_for(out_dt)
+                trip_shift = shift_for(out_dt)
+                if trip_day in ash_daily:
+                    ash_daily[trip_day] += 1
+                    ash_shift[trip_day][trip_shift] += 1
 
-            # Inside TAT: previous IN to this truck's next OUT; attribute to OUT date.
+                # Outside TAT is attributed to the return IN day and shift.
+                outside_day = shift_date_for(in_dt)
+                outside_shift = shift_for(in_dt)
+                if outside_day in tat_buckets:
+                    bucket = tat_buckets[outside_day][outside_shift]
+                    bucket["outside_sum"] += (in_dt - out_dt).total_seconds() / 60
+                    bucket["outside_count"] += 1
+
+            # Inside TAT is attributed to the next OUT day and shift.
             if previous_return and out_dt and out_dt >= previous_return:
-                day = out_dt.strftime("%Y-%m-%d")
-                if day in tat_days:
-                    tat_days[day]["inside_sum"] += (out_dt - previous_return).total_seconds() / 60
-                    tat_days[day]["inside_count"] += 1
+                inside_day = shift_date_for(out_dt)
+                inside_shift = shift_for(out_dt)
+                if inside_day in tat_buckets:
+                    bucket = tat_buckets[inside_day][inside_shift]
+                    bucket["inside_sum"] += (out_dt - previous_return).total_seconds() / 60
+                    bucket["inside_count"] += 1
 
             if in_dt:
                 previous_return = in_dt
 
-    tat_trend = []
-    for day_data in tat_days.values():
-        inside_count = day_data["inside_count"]
-        outside_count = day_data["outside_count"]
-        tat_trend.append({
-            "date": day_data["date"],
-            "avg_inside_minutes": round(day_data["inside_sum"] / inside_count, 1) if inside_count else None,
+    tat_3day = []
+    tat_shift_3day = []
+    ash_mound_3day = []
+    for day in report_days:
+        day_buckets = tat_buckets[day]
+        inside_count = sum(v["inside_count"] for v in day_buckets.values())
+        outside_count = sum(v["outside_count"] for v in day_buckets.values())
+        inside_sum = sum(v["inside_sum"] for v in day_buckets.values())
+        outside_sum = sum(v["outside_sum"] for v in day_buckets.values())
+        tat_3day.append({
+            "date": day,
+            "avg_inside_minutes": round(inside_sum / inside_count, 1) if inside_count else None,
             "inside_count": inside_count,
-            "avg_outside_minutes": round(day_data["outside_sum"] / outside_count, 1) if outside_count else None,
+            "avg_outside_minutes": round(outside_sum / outside_count, 1) if outside_count else None,
             "outside_count": outside_count
         })
+        ash_mound_3day.append({"date": day, "trips": ash_daily[day]})
+        for shift in shift_names:
+            bucket = day_buckets[shift]
+            tat_shift_3day.append({
+                "date": day, "shift": shift,
+                "avg_inside_minutes": round(bucket["inside_sum"] / bucket["inside_count"], 1) if bucket["inside_count"] else None,
+                "inside_count": bucket["inside_count"],
+                "avg_outside_minutes": round(bucket["outside_sum"] / bucket["outside_count"], 1) if bucket["outside_count"] else None,
+                "outside_count": bucket["outside_count"]
+            })
+    ash_mound_shift_3day = [
+        {"date": day, "shift": shift, "trips": ash_shift[day][shift]}
+        for day in report_days for shift in shift_names
+    ]
 
     # Truck-wise lifetime performance, calculated from the complete movement history.
     truck_perf = {}
@@ -342,7 +391,7 @@ def dashboard():
         "outside_fleet_pct": round(len(open_trips) / len(trucks) * 100, 1) if trucks else 0,
         "out_today": len(out_today), "returned_today": len(returned_today), "avg_tat_today": avg_tat_today,
         "completed_today": len(completed_today), "open_truck_rows": open_rows, "daily_trend": daily,
-        "gate_summary": gate_summary, "agency_summary": agency_summary, "tat_trend": tat_trend,
+        "gate_summary": gate_summary, "agency_summary": agency_summary, "tat_trend": tat_3day, "tat_shift_trend": tat_shift_3day,\n        "ash_mound_daily": ash_mound_3day, "ash_mound_shift": ash_mound_shift_3day,
         "recent_movements": recent_movements, "truck_performance": truck_performance})
 
 
