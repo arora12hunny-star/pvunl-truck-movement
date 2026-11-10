@@ -157,7 +157,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 @media(max-width:620px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-card{padding:13px}.kpi-value{font-size:26px}.dash-hero{padding:20px}.dash-hero h2{font-size:21px}.hero-actions{width:100%}.trend-chart{gap:5px}.trend-bars{gap:2px}.trend-bar{width:9px}.dash-panel{padding:14px}}
 
 @media(max-width:600px){header{padding:14px}.wrap{margin:12px auto}.panel{padding:13px}.tab{flex:1}}
-</style></head>
+.subsection-title{font-size:13px;color:#43566a;margin:16px 0 9px;font-weight:700}.ash-daily-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.ash-day-card{background:#f3f7fb;border:1px solid #dce6ef;border-radius:10px;padding:13px;display:flex;flex-direction:column;gap:5px}.ash-day-card span{font-size:12px;color:#52677b}.ash-day-card strong{font-size:25px;color:#173b60}.ash-day-card small{font-size:11px;color:#64778a}@media(max-width:600px){.ash-daily-cards{grid-template-columns:1fr 1fr}}</style></head>
 <body>
 <header><div><strong>PVUNL | Truck Movement Management</strong><br><small>QR-based Gate Entry & Exit Monitoring | Android + iPhone</small></div><div class="pwa-header-actions"><span id="sessionLabel">Not signed in</span><button id="installAppBtn" class="install-app-btn" type="button" hidden>＋ Install App</button></div></header>
 <div id="pwaStatus" class="pwa-status" role="status" aria-live="polite" hidden></div>
@@ -218,9 +218,20 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 </div>
 
 <div class="dash-panel tat-panel">
-  <div class="dash-panel-head"><div><div class="eyebrow dark">TURNAROUND ANALYTICS</div><h3>Day-wise Average Turnaround Time</h3><p>Inside Plant: previous IN to next OUT · Outside Plant: OUT to matching IN</p></div><div class="trend-legend"><span><i class="tat-legend-inside"></i> Inside Plant</span><span><i class="tat-legend-outside"></i> Outside Plant</span></div></div>
+  <div class="dash-panel-head"><div><div class="eyebrow dark">TURNAROUND ANALYTICS · LAST 3 DAYS</div><h3>Average Turnaround Time</h3><p>Inside Plant: previous IN to next OUT · Outside Plant: OUT to matching IN</p></div><div class="trend-legend"><span><i class="tat-legend-inside"></i> Inside Plant</span><span><i class="tat-legend-outside"></i> Outside Plant</span></div></div>
+  <h4 class="subsection-title">Day-wise average TAT (minutes)</h4>
   <div id="tatTrendChart" class="tat-trend-chart"></div>
-  <div class="tat-note">Daily averages are based only on completed cycles. Inside TAT is assigned to the OUT date; Outside TAT is assigned to the return IN date.</div>
+  <h4 class="subsection-title">Shift-wise average TAT (minutes)</h4>
+  <div class="tablewrap"><table class="dash-table"><thead><tr><th>DATE</th><th>SHIFT</th><th>AVG. INSIDE TAT</th><th>AVG. OUTSIDE TAT</th><th>INSIDE CYCLES</th><th>OUTSIDE CYCLES</th></tr></thead><tbody id="tatShiftRows"></tbody></table></div>
+  <div class="tat-note">Shift A: 06:00–14:00 · Shift B: 14:00–22:00 · Shift C: 22:00–06:00. Night-shift activity from 00:00–06:00 is attributed to the previous day's Shift C. Only completed cycles are included.</div>
+</div>
+<div class="dash-panel ash-trips-panel">
+  <div class="dash-panel-head"><div><div class="eyebrow dark">ASH MOUND MOVEMENTS · LAST 3 DAYS</div><h3>Main Ash Mound Trips</h3><p>One OUT followed by its subsequent IN is counted as one completed trip</p></div></div>
+  <h4 class="subsection-title">Day-wise trips</h4>
+  <div id="ashDailyRows" class="ash-daily-cards"></div>
+  <h4 class="subsection-title">Shift-wise trips</h4>
+  <div class="tablewrap"><table class="dash-table"><thead><tr><th>DATE</th><th>SHIFT A (06–14)</th><th>SHIFT B (14–22)</th><th>SHIFT C (22–06)</th><th>TOTAL</th></tr></thead><tbody id="ashShiftRows"></tbody></table></div>
+  <div class="tat-note">Trips are assigned to the shift and operational date of the OUT scan. An OUT without a subsequent IN is not counted as a completed trip.</div>
 </div>
 <div class="dash-panel recent-panel">
   <div class="dash-panel-head"><div><div class="eyebrow dark">LIVE ACTIVITY</div><h3>Recent Movement Register</h3><p>Latest recorded truck movements</p></div><span class="count-chip neutral">LATEST 30</span></div>
@@ -379,6 +390,11 @@ async function refreshAll(){
       {key:'avg_inside_minutes',label:'Inside Plant',color:'#245b8f',countKey:'inside_count'},
       {key:'avg_outside_minutes',label:'Outside Plant',color:'#16834a',countKey:'outside_count'}
     ],'minutes');
+    byId('tatShiftRows').innerHTML=(d.tat_shift_trend||[]).map(r=>'<tr><td>'+escapeHtml(r.date)+'</td><td><b>Shift '+r.shift+'</b></td><td>'+(r.avg_inside_minutes??'—')+'</td><td>'+(r.avg_outside_minutes??'—')+'</td><td>'+r.inside_count+'</td><td>'+r.outside_count+'</td></tr>').join('');
+    const ashDaily=d.ash_mound_daily||[];
+    byId('ashDailyRows').innerHTML=ashDaily.map(r=>'<div class="ash-day-card"><span>'+escapeHtml(r.date)+'</span><strong>'+r.trips+'</strong><small>completed trips</small></div>').join('');
+    const ashShift=d.ash_mound_shift||[];
+    byId('ashShiftRows').innerHTML=ashDaily.map(day=>{const values=ashShift.filter(r=>r.date===day.date);const a=values.find(r=>r.shift==='A')?.trips||0,b=values.find(r=>r.shift==='B')?.trips||0,c=values.find(r=>r.shift==='C')?.trips||0;return '<tr><td>'+escapeHtml(day.date)+'</td><td>'+a+'</td><td>'+b+'</td><td>'+c+'</td><td><b>'+(a+b+c)+'</b></td></tr>';}).join('');
 
     window.truckPerformanceData=d.truck_performance||[];renderTruckPerformance();
     byId('recentRows').innerHTML=d.recent_movements.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency||'-')}</td><td>${escapeHtml(r.Exit_Date||'-')} ${escapeHtml(r.Exit_Time||'')}</td><td>${escapeHtml(r.Entry_Date||'-')} ${escapeHtml(r.Entry_Time||'')}</td><td>${escapeHtml(r.TAT_Minutes??'-')}</td><td>${r.Status==='OUTSIDE'?'<span class="status-open">OPEN / OUTSIDE</span>':'INSIDE'}</td></tr>`).join('')||'<tr><td colspan="6">No movement records</td></tr>';
