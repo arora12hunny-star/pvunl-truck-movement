@@ -164,8 +164,8 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <div class="wrap">
 <div id="login" class="panel">
 <h2>Application Access</h2><p class="muted">Sign in using your assigned operator or administrator access code.</p>
-<label>Access code</label><input id="accessCode" type="password" placeholder="Enter access code" onkeydown="if(event.key==='Enter')login()">
-<button class="primary" onclick="login()">Sign in</button><div id="loginMsg"></div>
+<label>Access code</label><input id="accessCode" type="password" placeholder="Enter access code">
+<button id="signInBtn" class="primary" type="button">Sign in</button><div id="loginMsg" role="alert" aria-live="polite"></div>
 </div>
 <div id="app" class="hidden">
 <div id="adminTabs" class="tabs">
@@ -325,7 +325,9 @@ async function api(path,opts={}){
 }
 function msg(id,text,error=false){byId(id).innerHTML='<div class="notice '+(error?'error':'ok')+'">'+escapeHtml(text)+'</div>'}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function login(){
+byId('signInBtn').addEventListener('click',submitLogin);
+byId('accessCode').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();submitLogin();}});
+async function submitLogin(){
   code=byId('accessCode').value.trim();
   try{
     let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({access_code:code})});
