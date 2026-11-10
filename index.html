@@ -131,6 +131,21 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 .trend-bar{width:12px;min-height:2px;border-radius:4px 4px 0 0}.trend-bar.out{background:#3e78aa}.trend-bar.in{background:#2b9b70}
 .trend-label{font-size:10px;color:#73869a;white-space:nowrap}.trend-empty{color:#8795a4;font-size:12px;text-align:center;padding:50px 0}
 .recent-panel{margin-bottom:0}
+.fleet-position-strip{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #e5ebf1;border-radius:10px;padding:11px 16px;margin:-3px 0 15px;color:#60758a;font-size:11px}
+.fleet-position-strip>div:first-child{display:flex;align-items:center;gap:12px;white-space:nowrap}
+.fleet-position-strip>div:first-child>span,.fleet-position-strip>div:last-child>span{font-size:9px;letter-spacing:.8px;color:#8291a0;font-weight:800}
+.fleet-position-strip strong{font-size:12px;color:#294763;white-space:nowrap}.fleet-position-strip strong b{font-size:16px}
+.fleet-position-track{height:7px;background:#f5e8e5;border-radius:10px;overflow:hidden;flex:1}
+.fleet-position-track i{display:block;height:100%;width:0;background:#39916e;border-radius:10px;transition:width .25s}
+.analytics-details{background:#fff;border:1px solid #e2e9f0;border-radius:12px;margin-top:14px;overflow:hidden}
+.analytics-details>summary{list-style:none;cursor:pointer;padding:15px 18px;font-size:13px;font-weight:750;color:#294763;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.analytics-details>summary::-webkit-details-marker{display:none}
+.analytics-details>summary:after{content:'＋';font-size:18px;color:#607b93}
+.analytics-details[open]>summary:after{content:'−'}
+.analytics-details>summary span{font-size:10px;font-weight:500;color:#8291a0;margin-left:auto}
+.analytics-content{padding:0 14px 14px;border-top:1px solid #edf1f5}
+.analytics-content .dash-panel{box-shadow:none;margin:12px 0 0}
+@media(max-width:620px){.fleet-position-strip{gap:8px;padding:10px}.fleet-position-strip>div:first-child{gap:7px}.fleet-position-strip>div:first-child>span{display:none}.analytics-details>summary{flex-wrap:wrap}.analytics-details>summary span{width:100%;margin:0}}
 .report-intro h3{font-size:20px;color:#203c57;margin:6px 0}.report-intro>p{font-size:12px;color:#7b8c9e;margin:0 0 14px}
 .report-filters{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-top:16px}.report-filters>div{min-width:170px;flex:1}.report-filters input{margin-top:5px}
 .report-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}.report-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:14px}
@@ -178,8 +193,13 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
   <div class="kpi-card kpi-slate"><div class="kpi-top"><span>OUT TODAY</span><span class="kpi-icon">⇧</span></div><div class="kpi-value" id="sOutToday">0</div><div class="kpi-foot">Truck departures recorded</div></div>
   <div class="kpi-card kpi-green"><div class="kpi-top"><span>IN TODAY</span><span class="kpi-icon">⇩</span></div><div class="kpi-value" id="sInToday">0</div><div class="kpi-foot">Truck returns recorded</div></div>
   <div class="kpi-card kpi-violet"><div class="kpi-top"><span>AVERAGE TAT TODAY</span><span class="kpi-icon">◷</span></div><div class="kpi-value"><span id="sTat">0</span><small>min</small></div><div class="kpi-foot">Completed trips only</div></div>
-  <div class="kpi-card kpi-green"><div class="kpi-top"><span>INSIDE PLANT</span><span class="kpi-icon">⌂</span></div><div class="kpi-value" id="sInside">0</div><div class="kpi-foot">Registered fleet less open trips</div></div>
-  <div class="kpi-card kpi-violet"><div class="kpi-top"><span>FLEET OUTSIDE</span><span class="kpi-icon">↗</span></div><div class="kpi-value"><span id="sOutsidePct">0</span><small>%</small></div><div class="kpi-foot">Share of registered fleet currently outside</div></div>
+</div>
+<div class="fleet-position-strip">
+  <div><span>FLEET POSITION</span><strong><b id="sInside">0</b> Inside Plant</strong></div>
+  <div class="fleet-position-track"><i id="fleetInsideBar"></i></div>
+  <div><strong><b id="sOutsidePct">0</b>%</strong><span>Outside fleet</span></div>
+</div>
+<div class="dash-main-grid">
 </div>
 <div class="dash-main-grid">
   <div class="dash-panel open-panel">
@@ -192,7 +212,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
     <div class="gate-legend"><span><i class="legend-out"></i> OUT scans</span><span><i class="legend-in"></i> IN scans</span></div>
   </div>
 </div>
-<div class="dash-panel trend-panel">
+<details class="analytics-details"><summary>Movement trends & recent activity <span>7-day movement · TAT · latest records</span></summary><div class="analytics-content"><div class="dash-panel trend-panel">
   <div class="dash-panel-head"><div><div class="eyebrow dark">MOVEMENT ANALYTICS</div><h3>7-Day Movement Trend</h3><p>Daily truck departures and returns</p></div><div class="trend-legend"><span><i class="legend-out"></i> OUT</span><span><i class="legend-in"></i> IN</span></div></div>
   <div id="trendChart" class="trend-chart"></div>
 </div>
@@ -204,7 +224,8 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 </div>
 <div class="dash-panel recent-panel">
   <div class="dash-panel-head"><div><div class="eyebrow dark">LIVE ACTIVITY</div><h3>Recent Movement Register</h3><p>Latest recorded truck movements</p></div><span class="count-chip neutral">LATEST 30</span></div>
-  <div class="tablewrap"><table class="dash-table"><thead><tr><th>TRUCK</th><th>AGENCY</th><th>OUT</th><th>IN</th><th>TAT (MIN)</th><th>STATUS</th></tr></thead><tbody id="recentRows"></tbody></table></div>
+  <div class="tablewrap"><table class="dash-table"><thead><tr><th>TRUCK</th><th>AGENCY</th><th>OUT</th><th>IN</th><th>TAT (MIN)</th><th>STATUS</th></tr></thead><tbody id="recentRows"></tbody></table></div></div></details>
+
 </div>
 </section>
 <section id="performance" class="tabbody hidden">
@@ -336,6 +357,10 @@ async function refreshAll(){
     byId('sTat').textContent=d.avg_tat_today;
     byId('sInside').textContent=d.inside_plant??0;
     byId('sOutsidePct').textContent=d.outside_fleet_pct??0;
+    const fleetTotal=Number(d.registered_trucks)||0;const insidePct=fleetTotal?Math.max(0,Math.min(100,(Number(d.inside_plant)||0)/fleetTotal*100)):0;
+    byId('fleetInsideBar').style.width=insidePct+'%';
+    const fleetTotal=Number(d.registered_trucks)||0;const insidePct=fleetTotal?Math.max(0,Math.min(100,(Number(d.inside_plant)||0)/fleetTotal*100)):0;
+    byId('fleetInsideBar').style.width=insidePct+'%';
     byId('openCount').textContent=d.open_trips+' OPEN';
     const aged=(d.open_truck_rows||[]).filter(r=>Number(r.Age_Minutes||0)>=120).length;
     byId('openAgeAlert').textContent=aged+' OVER 2 H';
