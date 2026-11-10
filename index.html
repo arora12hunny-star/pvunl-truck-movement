@@ -632,6 +632,6 @@ if(installAppBtn){
  if(isIosDevice()&&!window.navigator.standalone)installAppBtn.hidden=false;
 }
 if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches&&installAppBtn)installAppBtn.hidden=true;
-if(code&&userRole){byId('accessCode').value=code;login()}
+if(code&&userRole){byId('accessCode').value=code;submitLogin()}
 setInterval(()=>{if(userRole==='admin'&&byId('dashboard')&&!byId('dashboard').classList.contains('hidden'))refreshAll()},60000);
 </script></body></html>
