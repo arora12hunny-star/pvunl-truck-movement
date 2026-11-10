@@ -130,6 +130,13 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 .trend-bar{width:12px;min-height:2px;border-radius:4px 4px 0 0}.trend-bar.out{background:#3e78aa}.trend-bar.in{background:#2b9b70}
 .trend-label{font-size:10px;color:#73869a;white-space:nowrap}.trend-empty{color:#8795a4;font-size:12px;text-align:center;padding:50px 0}
 .recent-panel{margin-bottom:0}
+.report-intro h3{font-size:20px;color:#203c57;margin:6px 0}.report-intro>p{font-size:12px;color:#7b8c9e;margin:0 0 14px}
+.report-filters{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-top:16px}.report-filters>div{min-width:170px;flex:1}.report-filters input{margin-top:5px}
+.report-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}.report-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:14px}
+.report-gates{display:grid;gap:12px}.report-gate-row{background:#f6f8fb;border:1px solid #e7edf3;border-radius:9px;padding:13px}.report-gate-row strong{display:block;color:#294763;margin-bottom:9px}.report-gate-stats{display:flex;gap:22px;font-size:12px;color:#62768a}
+.report-hours{height:210px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:5px;align-items:end}.report-hour{height:100%;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:5px;min-width:0}.report-hour-bars{height:160px;width:100%;display:flex;align-items:end;justify-content:center;gap:2px;border-bottom:1px solid #dce5ed}.report-hour-bars i{display:block;width:40%;min-width:3px;border-radius:3px 3px 0 0;background:#3e78aa}.report-hour-bars i.in{background:#2b9b70}.report-hour small{font-size:9px;color:#74869a}.report-hour b{font-size:9px;color:#64778a}.report-kpis .kpi-card{padding:14px}.report-kpis .kpi-value{font-size:25px}
+@media(max-width:1050px){.report-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.report-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.report-filters>div{min-width:130px}.report-hours{gap:2px}.report-hour small{font-size:8px}}
 @media(max-width:1050px){.kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.dash-main-grid{grid-template-columns:1fr}}
 @media(max-width:620px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-card{padding:13px}.kpi-value{font-size:26px}.dash-hero{padding:20px}.dash-hero h2{font-size:21px}.hero-actions{width:100%}.trend-chart{gap:5px}.trend-bars{gap:2px}.trend-bar{width:9px}.dash-panel{padding:14px}}
 
@@ -290,6 +297,7 @@ function showTab(t, skipRefresh=false){
   byId(t).classList.remove('hidden');
   document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
   if(!skipRefresh && userRole==='admin'&&(t==='dashboard'||t==='records'||t==='register'||t==='performance'))refreshAll();
+  if(!skipRefresh && userRole==='admin'&&t==='reports'){setDefaultReportDates();loadManagementReport();}
 }
 async function refreshAll(){
   if(userRole!=='admin')return;
@@ -301,6 +309,8 @@ async function refreshAll(){
     byId('sOutToday').textContent=d.out_today;
     byId('sInToday').textContent=d.returned_today;
     byId('sTat').textContent=d.avg_tat_today;
+    byId('sInside').textContent=d.inside_plant??0;
+    byId('sOutsidePct').textContent=d.outside_fleet_pct??0;
     byId('openCount').textContent=d.open_trips+' OPEN';
     byId('openRows').innerHTML=d.open_truck_rows.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency||'-')}</td><td>${escapeHtml(r.OUT_Time)}</td><td>${escapeHtml(r.OUT_Gate)}</td><td class="status-open">${r.Age_Minutes===null?'-':escapeHtml(r.Age_Minutes)+' min'}</td></tr>`).join('')||'<tr><td colspan="5">No trucks currently awaiting return</td></tr>';
     const maxGate=Math.max(1,...d.gate_summary.map(g=>g.out+g.in));
@@ -323,6 +333,41 @@ async function refreshAll(){
     byId('truckRows').innerHTML=tr.trucks.map(t=>`<tr><td>${escapeHtml(t.Truck_Number)}</td><td>${escapeHtml(t.Agency)}</td><td>${escapeHtml(t.Truck_ID)}</td><td><button onclick="showQR('${encodeURIComponent(t.Truck_ID)}','${encodeURIComponent(t.Truck_Number)}')">View / Print QR</button></td></tr>`).join('')||'<tr><td colspan="4">No trucks registered</td></tr>';
   }catch(e){if(e.message.toLowerCase().includes('access'))logout();else console.error(e)}
 }
+let lastManagementReport=null;
+function setDefaultReportDates(){
+  const now=new Date();
+  const to=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const first=new Date(now.getTime()-6*86400000);
+  const from=first.getFullYear()+'-'+String(first.getMonth()+1).padStart(2,'0')+'-'+String(first.getDate()).padStart(2,'0');
+  if(byId('reportFrom')&&!byId('reportFrom').value)byId('reportFrom').value=from;
+  if(byId('reportTo')&&!byId('reportTo').value)byId('reportTo').value=to;
+}
+async function loadManagementReport(){
+  if(userRole!=='admin')return;
+  setDefaultReportDates();
+  const from=byId('reportFrom').value,to=byId('reportTo').value;
+  if(!from||!to||from>to){msg('reportMsg','Please select a valid date range.',true);return;}
+  try{
+    const d=await api('/api/reports?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
+    lastManagementReport=d;
+    byId('reportMsg').textContent='Reporting period: '+d.date_from+' to '+d.date_to+' | '+d.total_records+' movement records';
+    byId('rTotal').textContent=d.total_records;byId('rCompleted').textContent=d.completed_trips;byId('rOpen').textContent=d.open_trips;
+    byId('rAvgTat').textContent=d.avg_tat_minutes??'—';byId('rMaxTat').textContent=d.max_tat_minutes??'—';
+    byId('reportRowsCount').textContent=d.rows.length+' RECORDS';
+    byId('reportGates').innerHTML=d.gate_summary.map(g=>'<div class="report-gate-row"><strong>'+escapeHtml(g.gate)+'</strong><div class="report-gate-stats"><span>OUT: <b>'+g.out+'</b></span><span>IN: <b>'+g.in+'</b></span><span>Total: <b>'+(g.out+g.in)+'</b></span></div></div>').join('');
+    const peak=Math.max(1,...d.hourly_summary.map(v=>Math.max(v.out,v.in)));
+    byId('reportHours').innerHTML=d.hourly_summary.map(v=>{const outH=v.out?Math.max(3,v.out/peak*150):0;const inH=v.in?Math.max(3,v.in/peak*150):0;return '<div class="report-hour"><b>'+(v.out+v.in||'')+'</b><div class="report-hour-bars"><i style="height:'+outH+'px"></i><i class="in" style="height:'+inH+'px"></i></div><small>'+String(v.hour).padStart(2,'0')+'</small></div>';}).join('');
+    byId('reportRows').innerHTML=d.rows.map(r=>'<tr><td>'+escapeHtml(r.Truck_Number)+'</td><td>'+escapeHtml(r.Agency||'-')+'</td><td>'+escapeHtml((r.Exit_Date||'-')+' '+(r.Exit_Time||''))+'</td><td>'+escapeHtml(r.Exit_Gate||'-')+'</td><td>'+escapeHtml((r.Entry_Date||'-')+' '+(r.Entry_Time||''))+'</td><td>'+escapeHtml(r.Entry_Gate||'-')+'</td><td>'+escapeHtml(r.TAT_Minutes??'-')+'</td><td>'+escapeHtml(r.Status||'-')+'</td></tr>').join('')||'<tr><td colspan="8">No movements in selected period</td></tr>';
+  }catch(e){msg('reportMsg',e.message,true);}
+}
+function exportManagementReport(){
+  if(!lastManagementReport||!lastManagementReport.rows.length){msg('reportMsg','Generate a report with records before exporting.',true);return;}
+  const cols=['Truck_Number','Agency','Exit_Date','Exit_Time','Exit_Gate','Entry_Date','Entry_Time','Entry_Gate','TAT_Minutes','Status'];
+  const lines=[cols.join(','),...lastManagementReport.rows.map(r=>cols.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"').join(','))];
+  const blob=new Blob([lines.join(String.fromCharCode(10))],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='PVUNL_Movement_Report_'+lastManagementReport.date_from+'_to_'+lastManagementReport.date_to+'.csv';link.click();URL.revokeObjectURL(url);
+}
+
 function renderSmoothTrend(containerId, rows, series, unit){
   const host=byId(containerId);
   if(!host)return;
