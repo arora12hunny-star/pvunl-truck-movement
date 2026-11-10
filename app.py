@@ -344,6 +344,71 @@ def dashboard():
         "recent_movements": recent_movements, "truck_performance": truck_performance})
 
 
+@app.get("/api/reports")
+def reports_api():
+    if not authorized("admin"):
+        return auth_error()
+    today = now_local().strftime("%Y-%m-%d")
+    default_from = (now_local() - timedelta(days=6)).strftime("%Y-%m-%d")
+    date_from = str(request.args.get("from", default_from)).strip()
+    date_to = str(request.args.get("to", today)).strip()
+    try:
+        start = datetime.strptime(date_from, "%Y-%m-%d").date()
+        end = datetime.strptime(date_to, "%Y-%m-%d").date()
+        if end < start or (end - start).days > 366:
+            raise ValueError()
+    except ValueError:
+        return jsonify({"error": "Select a valid date range of up to 367 days."}), 400
+    with LOCK:
+        wb = load_db()
+        movements = rows_as_dict(wb["Movements"])
+    selected = []
+    hours = [{"hour": hour, "out": 0, "in": 0} for hour in range(24)]
+    gates = {gate: {"gate": gate, "out": 0, "in": 0} for gate in ("Gate 3", "Gate 4")}
+    for movement in movements:
+        out_date = str(movement.get("Exit_Date") or "")[:10]
+        in_date = str(movement.get("Entry_Date") or "")[:10]
+        out_match = bool(out_date and date_from <= out_date <= date_to)
+        in_match = bool(in_date and date_from <= in_date <= date_to)
+        if out_match:
+            try:
+                hour = int(str(movement.get("Exit_Time") or "00:00").split(":")[0])
+                if 0 <= hour < 24: hours[hour]["out"] += 1
+            except (TypeError, ValueError): pass
+            gate = str(movement.get("Exit_Gate") or "")
+            if gate in gates: gates[gate]["out"] += 1
+        if in_match and movement.get("Entry_Time"):
+            try:
+                hour = int(str(movement.get("Entry_Time") or "00:00").split(":")[0])
+                if 0 <= hour < 24: hours[hour]["in"] += 1
+            except (TypeError, ValueError): pass
+            gate = str(movement.get("Entry_Gate") or "")
+            if gate in gates: gates[gate]["in"] += 1
+        if out_match or in_match:
+            selected.append({
+                "Movement_ID": str(movement.get("Movement_ID") or ""),
+                "Truck_Number": str(movement.get("Truck_Number") or ""),
+                "Agency": str(movement.get("Agency") or ""),
+                "Exit_Date": out_date, "Exit_Time": str(movement.get("Exit_Time") or ""),
+                "Exit_Gate": str(movement.get("Exit_Gate") or ""),
+                "Entry_Date": in_date, "Entry_Time": str(movement.get("Entry_Time") or ""),
+                "Entry_Gate": str(movement.get("Entry_Gate") or ""),
+                "TAT_Minutes": movement.get("TAT_Minutes"),
+                "Status": str(movement.get("Status") or "")
+            })
+    selected.sort(key=lambda row: (row["Exit_Date"] or row["Entry_Date"], row["Exit_Time"] or row["Entry_Time"]), reverse=True)
+    completed = [row for row in selected if row["TAT_Minutes"] not in (None, "")]
+    tat_values = [float(row["TAT_Minutes"]) for row in completed]
+    return jsonify({
+        "date_from": date_from, "date_to": date_to, "total_records": len(selected),
+        "completed_trips": len(completed),
+        "open_trips": sum(1 for row in selected if row["Status"].upper() == "OUTSIDE"),
+        "avg_tat_minutes": round(sum(tat_values) / len(tat_values), 1) if tat_values else None,
+        "max_tat_minutes": round(max(tat_values), 1) if tat_values else None,
+        "gate_summary": list(gates.values()), "hourly_summary": hours, "rows": selected
+    })
+
+
 @app.route("/api/trucks", methods=["GET", "POST"])
 def trucks_api():
     if not authorized("admin"):
