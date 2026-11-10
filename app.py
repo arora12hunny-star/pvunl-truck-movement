@@ -338,6 +338,8 @@ def dashboard():
         agency_map[agency] = agency_map.get(agency, 0) + 1
     agency_summary = [{"agency": k, "trips": v} for k, v in sorted(agency_map.items(), key=lambda x: x[1], reverse=True)[:8]]
     return jsonify({"registered_trucks": len(trucks), "open_trips": len(open_trips),
+        "inside_plant": max(0, len(trucks) - len(open_trips)),
+        "outside_fleet_pct": round(len(open_trips) / len(trucks) * 100, 1) if trucks else 0,
         "out_today": len(out_today), "returned_today": len(returned_today), "avg_tat_today": avg_tat_today,
         "completed_today": len(completed_today), "open_truck_rows": open_rows, "daily_trend": daily,
         "gate_summary": gate_summary, "agency_summary": agency_summary, "tat_trend": tat_trend,
