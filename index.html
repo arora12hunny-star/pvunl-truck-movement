@@ -21,6 +21,16 @@ header strong{font-size:19px}header small{opacity:.8}.wrap{max-width:1200px;marg
 .install-app-btn{background:#fff;color:#173b60;border:1px solid #d6e4ef;padding:9px 12px;border-radius:8px;font-size:12px}
 .pwa-status{max-width:1200px;margin:10px auto 0;padding:9px 14px;border-radius:8px;background:#fff4e2;color:#80510d;font-size:12px}
 [hidden]{display:none!important}
+.scanner-screen{position:fixed;inset:0;z-index:9999;background:#071522;color:#fff;display:flex;flex-direction:column;min-height:100dvh}
+.scanner-screen.hidden{display:none!important}
+.scanner-topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px;background:#102d49;color:#fff}
+.scanner-topbar b{display:block;font-size:18px}.scanner-topbar small{display:block;margin-top:5px;color:#c5d6e6}
+.scanner-close{background:#fff;color:#173b60;padding:10px 14px;white-space:nowrap}
+.scanner-content{width:100%;max-width:620px;margin:auto;padding:18px;text-align:center}
+#scannerCamera{width:100%;max-width:520px;margin:0 auto;border-radius:14px;overflow:hidden;background:#000}
+#scannerCamera video{object-fit:cover}
+#scannerScreenMsg{font-weight:600;margin:18px 0 8px}.scanner-hint{font-size:13px;color:#c5d6e6}
+@media(max-width:600px){.scanner-topbar{padding:13px}.scanner-content{padding:12px}#scannerCamera{max-width:100%}}
 @media(max-width:600px){.pwa-header-actions{width:100%;justify-content:space-between}.install-app-btn{padding:9px 10px}}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}.tab,button{border:0;border-radius:8px;padding:11px 15px;background:var(--blue);color:white;font-weight:600;cursor:pointer}.tab{background:#dfe8f1;color:#183b5b}.tab.active{background:var(--blue);color:white}
 .panel{background:white;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:15px;box-shadow:0 2px 8px #193b6010}
@@ -214,7 +224,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 </div>
 <p class="muted">Works in Android Chrome and iPhone Safari. Record OUT first when the truck leaves, then record IN when it returns. Select the action, allow camera access, and scan the truck QR. For iPhone and remote access, open this application using its HTTPS address.</p>
 <button class="success" onclick="startScanner()">Start camera scanner</button> <button class="secondary" onclick="stopScanner()">Stop camera</button><p class="muted">Use the rear camera. If camera permission is denied or unavailable, use Manual QR ID entry below.</p>
-<div id="reader"></div><div id="scanMsg"></div>
+<div id="scanMsg"></div>
 <hr><h3>Manual QR ID entry (backup)</h3><div class="row"><input id="manualTruckId" placeholder="Enter / paste Truck ID"><button onclick="manualScan()">Record movement</button></div>
 </div></section>
 <section id="register" class="tabbody hidden">
@@ -232,6 +242,10 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <div class="panel"><h2>Data Management</h2><p class="muted">These actions permanently delete records. Download a backup Excel file before proceeding.</p><button class="danger" onclick="resetMovements()">Delete all movement records</button> <button class="danger" onclick="resetAllData()">Reset all data (trucks + movements)</button><div id="dataAdminMsg"></div><p class="muted"><b>Delete all movement records:</b> retains registered trucks and QR codes. <b>Reset all data:</b> deletes both truck registrations and all movement history.</p></div>
 </section>
 </div></div>
+<div id="scannerScreen" class="scanner-screen hidden" role="dialog" aria-modal="true" aria-label="Full screen QR scanner">
+  <div class="scanner-topbar"><div><b>PVUNL QR Scanner</b><small>Align the truck QR code inside the frame</small></div><button type="button" class="scanner-close" onclick="closeScannerScreen()">Close ✕</button></div>
+  <div class="scanner-content"><div id="scannerCamera"></div><p id="scannerScreenMsg">Starting rear camera…</p><p class="scanner-hint">Keep the QR code steady and ensure sufficient light.</p></div>
+</div>
 <script>
 let code=sessionStorage.getItem('pvunl_code')||localStorage.getItem('pvunl_operator_code')||'', userRole=sessionStorage.getItem('pvunl_role')||localStorage.getItem('pvunl_operator_role')||'', scanner=null;
 const pendingTruckId=new URLSearchParams(window.location.search).get('truck_id')||'';
@@ -395,13 +409,20 @@ function printTruckQR(){
 }
 async function startScanner(){
   if(!window.Html5Qrcode){msg('scanMsg','QR scanner library could not load. Check internet connectivity.',true);return}
+  const screen=byId('scannerScreen');
+  screen.classList.remove('hidden');
+  byId('scannerScreenMsg').textContent='Starting rear camera…';
   try{
-    if(!scanner)scanner=new Html5Qrcode('reader');
+    if(!scanner)scanner=new Html5Qrcode('scannerCamera');
     await scanner.start({facingMode:'environment'},{fps:12,qrbox:(vw,vh)=>{const s=Math.floor(Math.min(vw,vh)*0.72);return {width:s,height:s}},aspectRatio:1.0},async decoded=>{await stopScanner();await submitScan(decoded)},e=>{});
-    msg('scanMsg','Camera started. Point it at the truck QR code.');
-  }catch(e){msg('scanMsg','Unable to start camera: '+e+'. Use HTTPS and allow camera permission.',true)}
+    byId('scannerScreenMsg').textContent='Camera active — point it at the truck QR code.';
+  }catch(e){byId('scannerScreenMsg').textContent='Unable to start camera: '+e+'. Allow camera permission and use HTTPS.';msg('scanMsg','Unable to start camera. Check camera permission and HTTPS.',true)}
 }
-async function stopScanner(){if(scanner){try{if(scanner.isScanning)await scanner.stop()}catch(e){}}}
+async function stopScanner(){
+  if(scanner){try{if(scanner.isScanning)await scanner.stop()}catch(e){}}
+  const screen=byId('scannerScreen');if(screen)screen.classList.add('hidden');
+}
+function closeScannerScreen(){stopScanner();}
 function extractTruckId(raw){
   const value=String(raw||'').trim();
   try{const u=new URL(value);const id=u.searchParams.get('truck_id');if(id)return id;}catch(e){}
