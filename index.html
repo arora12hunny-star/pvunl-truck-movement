@@ -372,8 +372,6 @@ async function refreshAll(){
     byId('sOutsidePct').textContent=d.outside_fleet_pct??0;
     const fleetTotal=Number(d.registered_trucks)||0;const insidePct=fleetTotal?Math.max(0,Math.min(100,(Number(d.inside_plant)||0)/fleetTotal*100)):0;
     byId('fleetInsideBar').style.width=insidePct+'%';
-    const fleetTotal=Number(d.registered_trucks)||0;const insidePct=fleetTotal?Math.max(0,Math.min(100,(Number(d.inside_plant)||0)/fleetTotal*100)):0;
-    byId('fleetInsideBar').style.width=insidePct+'%';
     byId('openCount').textContent=d.open_trips+' OPEN';
     const aged=(d.open_truck_rows||[]).filter(r=>Number(r.Age_Minutes||0)>=120).length;
     byId('openAgeAlert').textContent=aged+' OVER 2 H';
