@@ -1,7 +1,15 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#173b60">
+<meta name="description" content="PVUNL truck movement monitoring and gate operations dashboard">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PVUNL Trucks">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/icons/pvunl-app.svg">
+<link rel="apple-touch-icon" href="/icons/pvunl-app.svg">
 <title>PVUNL | QR Truck Movement</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -9,7 +17,11 @@
 :root{--navy:#173b60;--blue:#245b8f;--bg:#f3f6fa;--line:#dce4ed;--green:#16834a;--red:#b53b35}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px Arial,sans-serif;color:#1c2a38}
 header{background:var(--navy);color:white;padding:17px 22px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-header strong{font-size:19px}header small{opacity:.8}.wrap{max-width:1200px;margin:20px auto;padding:0 14px}
+header strong{font-size:19px}header small{opacity:.8}.wrap{max-width:1200px;margin:20px auto;padding:0 14px}.pwa-header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.install-app-btn{background:#fff;color:#173b60;border:1px solid #d6e4ef;padding:9px 12px;border-radius:8px;font-size:12px}
+.pwa-status{max-width:1200px;margin:10px auto 0;padding:9px 14px;border-radius:8px;background:#fff4e2;color:#80510d;font-size:12px}
+[hidden]{display:none!important}
+@media(max-width:600px){.pwa-header-actions{width:100%;justify-content:space-between}.install-app-btn{padding:9px 10px}}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}.tab,button{border:0;border-radius:8px;padding:11px 15px;background:var(--blue);color:white;font-weight:600;cursor:pointer}.tab{background:#dfe8f1;color:#183b5b}.tab.active{background:var(--blue);color:white}
 .panel{background:white;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:15px;box-shadow:0 2px 8px #193b6010}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{padding:16px;border:1px solid var(--line);border-radius:10px}.stat span{display:block;color:#657587;font-size:13px}.stat b{display:block;font-size:28px;margin-top:8px;color:var(--navy)}
@@ -114,7 +126,8 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 @media(max-width:600px){header{padding:14px}.wrap{margin:12px auto}.panel{padding:13px}.tab{flex:1}}
 </style></head>
 <body>
-<header><div><strong>PVUNL | Truck Movement Management</strong><br><small>QR-based Gate Entry & Exit Monitoring | Android + iPhone</small></div><div id="sessionLabel">Not signed in</div></header>
+<header><div><strong>PVUNL | Truck Movement Management</strong><br><small>QR-based Gate Entry & Exit Monitoring | Android + iPhone</small></div><div class="pwa-header-actions"><span id="sessionLabel">Not signed in</span><button id="installAppBtn" class="install-app-btn" type="button" hidden>＋ Install App</button></div></header>
+<div id="pwaStatus" class="pwa-status" role="status" aria-live="polite" hidden></div>
 <div class="wrap">
 <div id="login" class="panel">
 <h2>Application Access</h2><p class="muted">Sign in using your assigned operator or administrator access code.</p>
@@ -463,5 +476,23 @@ function downloadExcel(){
   .then(b=>{let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='PVUNL_Truck_Movement.xlsx';a.click();URL.revokeObjectURL(a.href)})
   .catch(e=>alert(e.message));
 }
+// PWA installation support. Only the app shell is cached; APIs and truck records remain online-only.
+let deferredInstallPrompt=null;
+const installAppBtn=byId('installAppBtn');
+const pwaStatus=byId('pwaStatus');
+function showPwaStatus(message){if(!pwaStatus)return;pwaStatus.textContent=message;pwaStatus.hidden=false;}
+function isIosDevice(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js',{scope:'/'}).catch(err=>console.warn('PWA service worker registration failed',err)));}
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(installAppBtn)installAppBtn.hidden=false;});
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(installAppBtn)installAppBtn.hidden=true;showPwaStatus('PVUNL Truck Movement has been installed on this device.');});
+if(installAppBtn){
+ installAppBtn.addEventListener('click',async()=>{
+  if(deferredInstallPrompt){deferredInstallPrompt.prompt();const choice=await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installAppBtn.hidden=true;if(choice&&choice.outcome==='accepted')showPwaStatus('App installation started.');return;}
+  if(isIosDevice())showPwaStatus('To install on iPhone: open this page in Safari, tap Share, then choose Add to Home Screen.');
+  else showPwaStatus('Open the browser menu and select Install app or Add to Home screen.');
+ });
+ if(isIosDevice()&&!window.navigator.standalone)installAppBtn.hidden=false;
+}
+if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches&&installAppBtn)installAppBtn.hidden=true;
 if(code&&userRole){byId('accessCode').value=code;login()}
 </script></body></html>
