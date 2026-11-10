@@ -391,7 +391,8 @@ def dashboard():
         "outside_fleet_pct": round(len(open_trips) / len(trucks) * 100, 1) if trucks else 0,
         "out_today": len(out_today), "returned_today": len(returned_today), "avg_tat_today": avg_tat_today,
         "completed_today": len(completed_today), "open_truck_rows": open_rows, "daily_trend": daily,
-        "gate_summary": gate_summary, "agency_summary": agency_summary, "tat_trend": tat_3day, "tat_shift_trend": tat_shift_3day,\n        "ash_mound_daily": ash_mound_3day, "ash_mound_shift": ash_mound_shift_3day,
+        "gate_summary": gate_summary, "agency_summary": agency_summary, "tat_trend": tat_3day, "tat_shift_trend": tat_shift_3day,
+        "ash_mound_daily": ash_mound_3day, "ash_mound_shift": ash_mound_shift_3day,
         "recent_movements": recent_movements, "truck_performance": truck_performance})
 
 
