@@ -111,6 +111,24 @@ def login_api():
 def home():
     return send_file(APP_DIR / "index.html")
 
+@app.get("/manifest.webmanifest")
+def pwa_manifest():
+    return send_file(APP_DIR / "manifest.webmanifest", mimetype="application/manifest+json")
+
+
+@app.get("/service-worker.js")
+def pwa_service_worker():
+    response = send_file(APP_DIR / "service-worker.js", mimetype="application/javascript")
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.get("/icons/pvunl-app.svg")
+def pwa_app_icon():
+    return send_file(APP_DIR / "pvunl-app.svg", mimetype="image/svg+xml")
+
+
 @app.get("/api/health")
 def health():
     try:
