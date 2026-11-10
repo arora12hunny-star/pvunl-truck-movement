@@ -174,7 +174,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <button class="tab" data-tab="register" onclick="showTab('register')">Truck Registration</button>
 <button class="tab" data-tab="records" onclick="showTab('records')">Movement Records</button>
 <button class="tab" data-tab="performance" onclick="showTab('performance')">Truck Performance</button>
-<button class="tab" data-tab="reports" onclick="showTab('reports')">Management Reports</button>
+
 <button class="tab" data-tab="settings" onclick="showTab('settings')">Settings</button>
 <button class="tab" onclick="logout()">Sign out</button>
 </div>
@@ -247,26 +247,7 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 <div class="tablewrap"><table class="dash-table perf-table"><thead><tr><th>TRUCK NO.</th><th>AGENCY</th><th>COMPLETED TRIPS</th><th>AVG. INSIDE TAT (MIN)</th><th>AVG. OUTSIDE TAT (MIN)</th><th>LONGEST OUTSIDE TAT (MIN)</th><th>CURRENT STATUS</th><th>OUTSTANDING SINCE</th></tr></thead><tbody id="truckPerfRows"></tbody></table></div>
 <p class="tat-note">Inside Plant TAT = previous IN to next OUT. Outside Plant TAT = OUT to corresponding IN. Averages include completed cycles only; open trips are excluded from averages. Metrics cover all available movement history.</p>
 </div></section>
-<section id="reports" class="tabbody hidden">
-<div class="dash-panel report-intro" style="margin-top:14px">
-<div class="eyebrow dark">MANAGEMENT INFORMATION SYSTEM</div><h3>Fleet Movement & Performance Reports</h3>
-<p>Select a reporting period to review movements, gate contribution, hourly traffic and turnaround performance.</p>
-<div class="report-filters"><div><label for="reportFrom">From date</label><input id="reportFrom" type="date"></div><div><label for="reportTo">To date</label><input id="reportTo" type="date"></div><button class="hero-refresh" onclick="loadManagementReport()">Generate Report</button><button class="hero-export" onclick="exportManagementReport()">Export CSV</button></div>
-<div id="reportMsg" class="tat-note">Select a date range and generate the report.</div></div>
-<div class="report-kpis">
-<div class="kpi-card"><div class="kpi-top"><span>MOVEMENT RECORDS</span></div><div class="kpi-value" id="rTotal">—</div></div>
-<div class="kpi-card"><div class="kpi-top"><span>COMPLETED TRIPS</span></div><div class="kpi-value" id="rCompleted">—</div></div>
-<div class="kpi-card"><div class="kpi-top"><span>OPEN TRIPS</span></div><div class="kpi-value" id="rOpen">—</div></div>
-<div class="kpi-card"><div class="kpi-top"><span>AVERAGE OUTSIDE TAT</span></div><div class="kpi-value"><span id="rAvgTat">—</span><small>min</small></div></div>
-<div class="kpi-card"><div class="kpi-top"><span>MAXIMUM OUTSIDE TAT</span></div><div class="kpi-value"><span id="rMaxTat">—</span><small>min</small></div></div>
-</div>
-<div class="report-grid">
-<div class="dash-panel"><div class="dash-panel-head"><div><div class="eyebrow dark">GATE CONTRIBUTION</div><h3>Gate-wise Movement</h3><p>IN and OUT scans for selected dates</p></div></div><div id="reportGates" class="report-gates"></div></div>
-<div class="dash-panel"><div class="dash-panel-head"><div><div class="eyebrow dark">TRAFFIC DISTRIBUTION</div><h3>Hour-wise Movement</h3><p>Scan counts by hour of day</p></div></div><div id="reportHours" class="report-hours"></div></div>
-</div>
-<div class="dash-panel"><div class="dash-panel-head"><div><div class="eyebrow dark">DETAILED REGISTER</div><h3>Movement Details</h3><p>Records with an OUT or IN scan in the selected period</p></div><span class="count-chip neutral" id="reportRowsCount">0 RECORDS</span></div>
-<div class="tablewrap"><table class="dash-table"><thead><tr><th>TRUCK</th><th>AGENCY</th><th>OUT DATE/TIME</th><th>OUT GATE</th><th>IN DATE/TIME</th><th>IN GATE</th><th>TAT (MIN)</th><th>STATUS</th></tr></thead><tbody id="reportRows"></tbody></table></div></div>
-</section>
+
 <section id="settings" class="tabbody hidden">
 <div class="panel" style="margin-top:14px"><h2>Gate Operator Password</h2>
 <p class="muted">Default operator password: PVUNL2028. Administrator can change it here. The new password applies to all Gate Operator logins.</p>
@@ -355,8 +336,6 @@ function showTab(t, skipRefresh=false){
   byId(t).classList.remove('hidden');
   document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
   if(!skipRefresh && userRole==='admin'&&(t==='dashboard'||t==='records'||t==='register'||t==='performance'))refreshAll();
-  if(!skipRefresh && userRole==='admin'&&t==='reports'){setDefaultReportDates();loadManagementReport();}
-  if(!skipRefresh && userRole==='admin'&&t==='reports'){setDefaultReportDates();loadManagementReport();}
 }
 async function refreshAll(){
   if(userRole!=='admin')return;
