@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pvunl-truck-shell-v1';
+const CACHE_NAME = 'pvunl-truck-shell-v2';
 const APP_SHELL = ['/', '/manifest.webmanifest', '/icons/pvunl-app.svg'];
 
 self.addEventListener('install', event => {
