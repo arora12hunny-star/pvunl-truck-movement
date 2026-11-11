@@ -220,6 +220,11 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 
 <div class="dash-panel tat-panel">
   <div class="dash-panel-head"><div><div class="eyebrow dark">TURNAROUND ANALYTICS · LAST 3 DAYS</div><h3>Average Turnaround Time</h3><p>Inside Plant: previous IN to next OUT · Outside Plant: OUT to matching IN</p></div><div class="trend-legend"><span><i class="tat-legend-inside"></i> Inside Plant</span><span><i class="tat-legend-outside"></i> Outside Plant</span></div></div>
+  <div class="dash-panel" style="margin:0 0 14px;box-shadow:none;border:1px solid #e7edf3">
+    <div class="dash-panel-head"><div><div class="eyebrow dark">COMPLETED TRIP TAT · LAST 4 CALENDAR DAYS</div><h3>Average TAT per Day</h3><p>Average OUT-to-IN turnaround time of completed trips (minutes)</p></div></div>
+    <div id="avgTat4DayChart" class="tat-trend-chart"></div>
+    <div class="tat-note">Daily average is based on completed trips whose return IN was recorded on that date. Open trips are excluded.</div>
+  </div>
   <h4 class="subsection-title">Day-wise average TAT (minutes)</h4>
   <div id="tatTrendChart" class="tat-trend-chart"></div>
   <h4 class="subsection-title">Shift-wise average TAT line trend (minutes)</h4>
@@ -368,6 +373,9 @@ async function refreshAll(){
       {key:'out',label:'OUT',color:'#3e78aa'},
       {key:'in',label:'IN',color:'#2b9b70'}
     ],'scans');
+    renderSmoothTrend('avgTat4DayChart',d.avg_trip_tat_4day||[],[
+      {key:'avg_tat_minutes',label:'Average completed-trip TAT',color:'#245b8f',countKey:'completed_trips'}
+    ],'minutes');
     const tatRows=d.tat_trend||[];
     renderSmoothTrend('tatTrendChart',tatRows,[
       {key:'avg_inside_minutes',label:'Inside Plant',color:'#245b8f',countKey:'inside_count'},
@@ -477,7 +485,7 @@ function renderSmoothTrend(containerId, rows, series, unit){
     }).join('');
     return line+dots;
   }).join('');
-  host.innerHTML='<div class="smooth-chart-frame"><svg class="smooth-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Seven day '+unit+' trend chart">'+grid+paths+labels+'</svg></div>';
+  host.innerHTML='<div class="smooth-chart-frame"><svg class="smooth-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Daily '+unit+' trend chart">'+grid+paths+labels+'</svg></div>';
 }
 
 function renderTruckPerformance(){
