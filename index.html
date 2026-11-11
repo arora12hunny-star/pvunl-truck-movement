@@ -213,6 +213,12 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
     <div class="gate-legend"><span><i class="legend-out"></i> OUT scans</span><span><i class="legend-in"></i> IN scans</span></div>
   </div>
 </div>
+<div class="dash-panel tat-panel" style="margin-bottom:14px">
+    <div class="dash-panel-head"><div><div class="eyebrow dark">COMPLETED TRIP TAT · LAST 4 CALENDAR DAYS</div><h3>Average TAT per Day</h3><p>Average OUT-to-IN turnaround time of completed trips (minutes)</p></div></div>
+    <div id="avgTat4DayChart" class="tat-trend-chart"></div>
+    <div class="tat-note">Daily average is based on completed trips whose return IN was recorded on that date. Open trips are excluded.</div>
+  </div>
+
 <details class="analytics-details"><summary>Movement trends & recent activity <span>7-day movement · TAT · latest records</span></summary><div class="analytics-content"><div class="dash-panel trend-panel">
   <div class="dash-panel-head"><div><div class="eyebrow dark">MOVEMENT ANALYTICS</div><h3>7-Day Movement Trend</h3><p>Daily truck departures and returns</p></div><div class="trend-legend"><span><i class="legend-out"></i> OUT</span><span><i class="legend-in"></i> IN</span></div></div>
   <div id="trendChart" class="trend-chart"></div>
@@ -220,11 +226,6 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
 
 <div class="dash-panel tat-panel">
   <div class="dash-panel-head"><div><div class="eyebrow dark">TURNAROUND ANALYTICS · LAST 3 DAYS</div><h3>Average Turnaround Time</h3><p>Inside Plant: previous IN to next OUT · Outside Plant: OUT to matching IN</p></div><div class="trend-legend"><span><i class="tat-legend-inside"></i> Inside Plant</span><span><i class="tat-legend-outside"></i> Outside Plant</span></div></div>
-  <div class="dash-panel" style="margin:0 0 14px;box-shadow:none;border:1px solid #e7edf3">
-    <div class="dash-panel-head"><div><div class="eyebrow dark">COMPLETED TRIP TAT · LAST 4 CALENDAR DAYS</div><h3>Average TAT per Day</h3><p>Average OUT-to-IN turnaround time of completed trips (minutes)</p></div></div>
-    <div id="avgTat4DayChart" class="tat-trend-chart"></div>
-    <div class="tat-note">Daily average is based on completed trips whose return IN was recorded on that date. Open trips are excluded.</div>
-  </div>
   <h4 class="subsection-title">Day-wise average TAT (minutes)</h4>
   <div id="tatTrendChart" class="tat-trend-chart"></div>
   <h4 class="subsection-title">Shift-wise average TAT line trend (minutes)</h4>
