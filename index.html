@@ -219,18 +219,8 @@ h2{margin:0 0 12px;font-size:19px;color:var(--navy)}
     <div class="tat-note">Daily average is based on completed trips whose return IN was recorded on that date. Open trips are excluded.</div>
   </div>
 
-<details class="analytics-details"><summary>Movement trends & recent activity <span>7-day movement · TAT · latest records</span></summary><div class="analytics-content"><div class="dash-panel trend-panel">
-  <div class="dash-panel-head"><div><div class="eyebrow dark">MOVEMENT ANALYTICS</div><h3>7-Day Movement Trend</h3><p>Daily truck departures and returns</p></div><div class="trend-legend"><span><i class="legend-out"></i> OUT</span><span><i class="legend-in"></i> IN</span></div></div>
-  <div id="trendChart" class="trend-chart"></div>
-</div>
-
-<div class="dash-panel tat-panel">
+<details class="analytics-details"><summary>Shift-wise TAT details & recent activity <span>Shift summary · latest records</span></summary><div class="analytics-content"><div class="dash-panel tat-panel">
   <div class="dash-panel-head"><div><div class="eyebrow dark">TURNAROUND ANALYTICS · LAST 3 DAYS</div><h3>Average Turnaround Time</h3><p>Inside Plant: previous IN to next OUT · Outside Plant: OUT to matching IN</p></div><div class="trend-legend"><span><i class="tat-legend-inside"></i> Inside Plant</span><span><i class="tat-legend-outside"></i> Outside Plant</span></div></div>
-  <h4 class="subsection-title">Day-wise average TAT (minutes)</h4>
-  <div id="tatTrendChart" class="tat-trend-chart"></div>
-  <h4 class="subsection-title">Shift-wise average TAT line trend (minutes)</h4>
-  <div id="tatShiftTrendChart" class="tat-trend-chart"></div>
-  <div class="tat-note">Each line represents inside-plant or outside-plant average TAT for Shift A, B or C across the last three operational days.</div>
   <h4 class="subsection-title">Shift-wise average TAT details</h4>
   <div class="tablewrap"><table class="dash-table"><thead><tr><th>DATE</th><th>SHIFT</th><th>AVG. INSIDE TAT</th><th>AVG. OUTSIDE TAT</th><th>INSIDE CYCLES</th><th>OUTSIDE CYCLES</th></tr></thead><tbody id="tatShiftRows"></tbody></table></div>
   <div class="tat-note">Shift A: 06:00–14:00 · Shift B: 14:00–22:00 · Shift C: 22:00–06:00. Night-shift activity from 00:00–06:00 is attributed to the previous day's Shift C. Only completed cycles are included.</div>
@@ -369,38 +359,10 @@ async function refreshAll(){
     byId('openRows').innerHTML=d.open_truck_rows.map(r=>`<tr><td>${escapeHtml(r.Truck_Number)}</td><td>${escapeHtml(r.Agency||'-')}</td><td>${escapeHtml(r.OUT_Time)}</td><td>${escapeHtml(r.OUT_Gate)}</td><td class="status-open">${r.Age_Minutes===null?'-':escapeHtml(r.Age_Minutes)+' min'}</td></tr>`).join('')||'<tr><td colspan="5">No trucks currently awaiting return</td></tr>';
     const maxGate=Math.max(1,...d.gate_summary.map(g=>g.out+g.in));
     byId('gateCards').innerHTML=d.gate_summary.map(g=>{const total=g.out+g.in;const outWidth=total?g.out/total*100:0;const inWidth=total?g.in/total*100:0;return `<div class="gate-card"><div class="gate-card-head"><strong>${escapeHtml(g.gate)}</strong><span>${total} total scans</span></div><div class="gate-metrics"><div class="gate-metric"><strong>${g.out}</strong><span>OUT scans</span></div><div class="gate-metric"><strong>${g.in}</strong><span>IN scans</span></div></div><div class="gate-bars"><span class="out" style="width:${outWidth}%"></span><span class="in" style="width:${inWidth}%"></span></div></div>`}).join('');
-    const movementRows=d.daily_trend||[];
-    renderSmoothTrend('trendChart',movementRows,[
-      {key:'out',label:'OUT',color:'#3e78aa'},
-      {key:'in',label:'IN',color:'#2b9b70'}
-    ],'scans');
     renderSmoothTrend('avgTat4DayChart',d.avg_trip_tat_4day||[],[
       {key:'avg_tat_minutes',label:'Average completed-trip TAT',color:'#245b8f',countKey:'completed_trips'}
     ],'minutes');
-    const tatRows=d.tat_trend||[];
-    renderSmoothTrend('tatTrendChart',tatRows,[
-      {key:'avg_inside_minutes',label:'Inside Plant',color:'#245b8f',countKey:'inside_count'},
-      {key:'avg_outside_minutes',label:'Outside Plant',color:'#16834a',countKey:'outside_count'}
-    ],'minutes');
     byId('tatShiftRows').innerHTML=(d.tat_shift_trend||[]).map(r=>'<tr><td>'+escapeHtml(r.date)+'</td><td><b>Shift '+r.shift+'</b></td><td>'+(r.avg_inside_minutes??'—')+'</td><td>'+(r.avg_outside_minutes??'—')+'</td><td>'+r.inside_count+'</td><td>'+r.outside_count+'</td></tr>').join('');
-    const shiftTrendDates=[...new Set((d.tat_shift_trend||[]).map(r=>r.date))].sort();
-    const shiftTrendRows=shiftTrendDates.map(date=>{
-      const row={date};
-      for(const shift of ['A','B','C']){
-        const item=(d.tat_shift_trend||[]).find(r=>r.date===date&&r.shift===shift);
-        row['inside_'+shift]=item?.avg_inside_minutes??null;
-        row['outside_'+shift]=item?.avg_outside_minutes??null;
-      }
-      return row;
-    });
-    renderSmoothTrend('tatShiftTrendChart',shiftTrendRows,[
-      {key:'inside_A',label:'Shift A · Inside',color:'#245b8f'},
-      {key:'outside_A',label:'Shift A · Outside',color:'#16834a'},
-      {key:'inside_B',label:'Shift B · Inside',color:'#7b61a8'},
-      {key:'outside_B',label:'Shift B · Outside',color:'#d17a32'},
-      {key:'inside_C',label:'Shift C · Inside',color:'#3f8794'},
-      {key:'outside_C',label:'Shift C · Outside',color:'#b65b75'}
-    ],'minutes');
     const ashDaily=d.ash_mound_daily||[];
     byId('ashDailyRows').innerHTML=ashDaily.map(r=>'<div class="ash-day-card"><span>'+escapeHtml(r.date)+'</span><strong>'+r.trips+'</strong><small>completed trips</small></div>').join('');
     const ashShift=d.ash_mound_shift||[];
