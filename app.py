@@ -355,6 +355,17 @@ def dashboard():
     # Last 3 calendar days: daily and shift-wise inside/outside TAT and completed ash-mound trips.
     # Shift C is attributed to the date on which the shift started (22:00-06:00).
     report_days = [(current - timedelta(days=offset)).strftime("%Y-%m-%d") for offset in (2, 1, 0)]
+    # Overall completed-trip TAT, attributed to the return IN date, for the last four calendar days.
+    avg_trip_tat_4day = []
+    for offset in (3, 2, 1, 0):
+        day = (current - timedelta(days=offset)).strftime("%Y-%m-%d")
+        completed_for_day = [m for m in movements if str(m.get("Entry_Date") or "") == day
+                             and m.get("Entry_Time") and m.get("TAT_Minutes") is not None
+                             and str(m.get("Status") or "").upper() != "OUTSIDE"]
+        values = [float(m["TAT_Minutes"]) for m in completed_for_day]
+        avg_trip_tat_4day.append({"date": day,
+                                  "avg_tat_minutes": round(sum(values) / len(values), 1) if values else None,
+                                  "completed_trips": len(values)})
     shift_names = ("A", "B", "C")
 
     def shift_for(stamp):
@@ -547,6 +558,7 @@ def dashboard():
         "out_today": len(out_today), "returned_today": len(returned_today), "avg_tat_today": avg_tat_today,
         "completed_today": len(completed_today), "open_truck_rows": open_rows, "daily_trend": daily,
         "gate_summary": gate_summary, "agency_summary": agency_summary, "tat_trend": tat_3day, "tat_shift_trend": tat_shift_3day,
+        "avg_trip_tat_4day": avg_trip_tat_4day,
         "ash_mound_daily": ash_mound_3day, "ash_mound_shift": ash_mound_shift_3day,
         "recent_movements": recent_movements, "truck_performance": truck_performance})
 
